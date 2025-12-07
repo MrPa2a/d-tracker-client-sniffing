@@ -101,7 +101,7 @@ class BatchUploader(threading.Thread):
                 # print("[Uploader] Attention: Pas de token API configuré.")
                 pass
 
-            print(f"[Uploader] Envoi vers {self.api_url}")
+            # print(f"[Uploader] Envoi vers {self.api_url}")
             response = requests.post(self.api_url, json=batch, headers=headers, timeout=10)
             
             if response.status_code in [200, 201]:

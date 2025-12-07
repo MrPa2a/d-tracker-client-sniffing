@@ -7,10 +7,11 @@ from core.anomaly_filter import AnomalyFilter
 from utils.config import config_manager
 
 class SnifferService(threading.Thread):
-    def __init__(self, callback=None, on_error=None):
+    def __init__(self, callback=None, on_error=None, on_unknown_item=None):
         super().__init__()
         self.callback = callback
         self.on_error = on_error
+        self.on_unknown_item = on_unknown_item
         self.running = False
         self.filter = AnomalyFilter(
             min_price=config_manager.get("min_price_threshold", 10),
@@ -69,7 +70,12 @@ class SnifferService(threading.Thread):
                         if gid and prices:
                             name = game_data.get_item_name(gid)
                             if not name:
-                                name = f"Unknown Item ({gid})"
+                                if self.on_unknown_item:
+                                    # Ask UI to resolve name (blocking call ideally)
+                                    name = self.on_unknown_item(gid)
+                                
+                                if not name:
+                                    name = f"Unknown Item ({gid})"
                                 
                             # Filter anomalies
                             filtered_prices, average = self.filter.filter_prices(prices)

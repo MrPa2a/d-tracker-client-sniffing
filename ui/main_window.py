@@ -5,6 +5,7 @@ import os
 from tkinter import messagebox
 from ui.overlay import OverlayWindow
 from core.sniffer_service import SnifferService
+from core.game_data import game_data
 from network.uploader import BatchUploader
 from utils.config import config_manager, DOFUS_SERVERS
 
@@ -170,12 +171,40 @@ class MainWindow(ctk.CTk):
             self.start_sniffer()
 
     def start_sniffer(self):
-        self.sniffer = SnifferService(callback=self.on_observation, on_error=self.on_sniffer_error)
+        self.sniffer = SnifferService(callback=self.on_observation, on_error=self.on_sniffer_error, on_unknown_item=self.on_unknown_item)
         self.sniffer.start()
         self.start_btn.configure(text="Arrêter Scraping", fg_color="#da3633", hover_color="#b62324")
         print("Scraping démarré.")
         
         self._update_overlay_visibility()
+
+    def on_unknown_item(self, gid):
+        # This runs in sniffer thread. We need to ask main thread.
+        self.unknown_item_gid = gid
+        self.unknown_item_name = None
+        self.unknown_item_event = threading.Event()
+        
+        # Schedule dialog on main thread
+        self.after(0, self._ask_item_name)
+        
+        # Wait for result (blocking the sniffer thread)
+        self.unknown_item_event.wait()
+        
+        return self.unknown_item_name
+
+    def _ask_item_name(self):
+        gid = self.unknown_item_gid
+        # Show dialog
+        dialog = ctk.CTkInputDialog(text=f"Item inconnu détecté (GID: {gid}).\nEntrez le nom de l'objet :", title="Item Inconnu")
+        name = dialog.get_input()
+        
+        if name and name.strip():
+            self.unknown_item_name = name.strip()
+            # Save it immediately
+            game_data.save_user_item(gid, name.strip())
+            print(f"Item {gid} identifié comme : {name.strip()}")
+            
+        self.unknown_item_event.set()
 
     def on_sniffer_error(self, error_msg):
         self.stop_sniffer()

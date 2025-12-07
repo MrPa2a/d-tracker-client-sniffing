@@ -1,14 +1,18 @@
 import json
 import os
+import requests
+import threading
 from core.d2o_reader import D2OReader
 from core.d2i_reader import D2IReader
 from utils.paths import get_resource_path
+from utils.config import config_manager
 
 class GameData:
     def __init__(self):
         self.items = {}
         self.i18n = {}
         self.user_items = {} # Mapping GID -> Name défini par l'utilisateur
+        self.known_items = {} # Mapping GID -> Name récupéré du serveur (communauté)
         self.loaded = False
         self.d2o_reader = None
         self.d2i_reader = None
@@ -48,12 +52,38 @@ class GameData:
             if os.path.exists(user_items_path):
                 with open(user_items_path, "r", encoding="utf-8") as f:
                     self.user_items = json.load(f)
+            
+            # Chargement des items communautaires
+            self.fetch_remote_items()
                 
             self.loaded = True
-            print(f"Données chargées : {len(self.items)} items officiels (JSON), {len(self.user_items)} items appris.")
+            print(f"Données chargées : {len(self.items)} items officiels (JSON), {len(self.user_items)} items appris, {len(self.known_items)} items communautaires.")
             
         except Exception as e:
             print(f"Erreur lors du chargement des données : {e}")
+
+    def fetch_remote_items(self):
+        """Récupère les items connus du serveur."""
+        try:
+            api_url = config_manager.get("api_url")
+            if not api_url: return
+            
+            # Hacky way to get base url if it includes endpoint
+            base_url = api_url.replace("/ingest", "")
+            url = f"{base_url}/known_items"
+            
+            print(f"Récupération des items connus depuis {url}...")
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                remote_items = response.json()
+                for item in remote_items:
+                    gid = str(item["gid"])
+                    name = item["name"]
+                    self.known_items[gid] = name
+            else:
+                print(f"Erreur récupération items: {response.status_code}")
+        except Exception as e:
+            print(f"Impossible de récupérer les items distants: {e}")
 
     def save_user_item(self, gid, name):
         """Enregistre un nouveau mapping GID -> Nom."""
@@ -63,8 +93,22 @@ class GameData:
             with open(user_items_path, "w", encoding="utf-8") as f:
                 json.dump(self.user_items, f, indent=4, ensure_ascii=False)
             print(f"Item appris : {name} ({gid})")
+            
+            # Push to server in background
+            threading.Thread(target=self._push_item_to_server, args=(gid, name), daemon=True).start()
+                
         except Exception as e:
             print(f"Erreur sauvegarde item : {e}")
+
+    def _push_item_to_server(self, gid, name):
+        try:
+            api_url = config_manager.get("api_url")
+            if api_url:
+                base_url = api_url.replace("/ingest", "")
+                url = f"{base_url}/known_items"
+                requests.post(url, json={"gid": int(gid), "name": name}, timeout=10)
+        except Exception as e:
+            print(f"Erreur envoi item serveur: {e}")
 
     def get_item_name(self, gid):
         if not self.loaded:
@@ -73,6 +117,10 @@ class GameData:
         # Priorité aux items appris par l'utilisateur
         if str(gid) in self.user_items:
             return self.user_items[str(gid)]
+            
+        # Ensuite les items communautaires
+        if str(gid) in self.known_items:
+            return self.known_items[str(gid)]
             
         # Essai via D2O/D2I
         if self.d2o_reader and self.d2i_reader:
