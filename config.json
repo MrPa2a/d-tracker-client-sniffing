@@ -1,9 +1,9 @@
 {
-    "server": "Hell Mina",
+    "server": "Rafal",
     "api_url": "https://dofus-tracker-backend.vercel.app/api/ingest",
     "api_token": "A009idOrRaYtR6U3B8fYBQqYTZAluKm97Tgez3W10J0BiBqdpYLc3rr1o78Plhqw",
     "capture_interface": null,
-    "min_price_threshold": 0,
+    "min_price_threshold": 10,
     "max_price_threshold": 1000000000,
     "outlier_threshold_percent": 500,
     "overlay_mode": "Auto"

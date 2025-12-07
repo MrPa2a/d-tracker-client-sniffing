@@ -20,11 +20,11 @@ DOFUS_SERVERS = [
 ]
 
 DEFAULT_CONFIG = {
-    "server": "Draconiros",
-    "api_url": "https://dofus-tracker-backend.vercel.app",
+    "server": "Hell Mina",
+    "api_url": "https://dofus-tracker-backend.vercel.app/api/ingest",
     "api_token": "A009idOrRaYtR6U3B8fYBQqYTZAluKm97Tgez3W10J0BiBqdpYLc3rr1o78Plhqw",
     "capture_interface": None,
-    "min_price_threshold": 10,
+    "min_price_threshold": 0,
     "max_price_threshold": 1000000000,
     "outlier_threshold_percent": 500, # 500% deviation
     "overlay_mode": "Auto"
