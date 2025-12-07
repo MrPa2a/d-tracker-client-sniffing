@@ -1,6 +1,9 @@
 from scapy.all import sniff, TCP, IP, Raw, conf
 from colorama import init, Fore, Style
 import sys
+import json
+import time
+import os
 from game_data import game_data
 
 # Initialisation de colorama
@@ -8,6 +11,64 @@ init()
 
 # Chargement des données
 game_data.load()
+
+OBSERVATIONS_FILE = "observations.json"
+
+def calculate_average_price(prices):
+    if not prices:
+        return 0
+    
+    unit_prices = []
+    # Process in chunks of 4
+    for i in range(0, len(prices), 4):
+        chunk = prices[i:i+4]
+        
+        # Pad chunk with 0 if incomplete
+        while len(chunk) < 4:
+            chunk.append(0)
+            
+        p1, p10, p100, p1000 = chunk
+        
+        if p1 > 0:
+            unit_prices.append(p1)
+        if p10 > 0:
+            unit_prices.append(p10 / 10)
+        if p100 > 0:
+            unit_prices.append(p100 / 100)
+        if p1000 > 0:
+            unit_prices.append(p1000 / 1000)
+            
+    if not unit_prices:
+        return 0
+        
+    return sum(unit_prices) / len(unit_prices)
+
+def save_observation(gid, name, prices):
+    average_price = calculate_average_price(prices)
+    entry = {
+        "gid": gid,
+        "name": name,
+        "prices": prices,
+        "average_price": average_price,
+        "timestamp": int(time.time() * 1000)
+    }
+    
+    try:
+        data = []
+        if os.path.exists(OBSERVATIONS_FILE):
+            with open(OBSERVATIONS_FILE, "r", encoding="utf-8") as f:
+                try:
+                    data = json.load(f)
+                except json.JSONDecodeError:
+                    pass
+        
+        data.append(entry)
+        
+        with open(OBSERVATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+            
+    except Exception as e:
+        print(f"Erreur sauvegarde observation : {e}")
 
 def read_varint(buffer, pos):
     """Lit un VarInt depuis une position donnée. Retourne (valeur, nouvelle_pos)."""
@@ -135,6 +196,10 @@ def packet_callback(packet):
 
                         print(f"{Fore.GREEN}[DETECTED] {name} (GID: {gid}){Style.RESET_ALL}")
                         print(f" - Prix : {prices}")
+                        if prices:
+                            avg = calculate_average_price(prices)
+                            print(f" - Prix moyen : {avg:.2f} k/u")
+                            save_observation(gid, name, prices)
             except Exception as e:
                 pass
 

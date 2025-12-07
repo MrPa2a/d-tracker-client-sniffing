@@ -1,0 +1,770 @@
+[
+    {
+        "gid": 23868,
+        "name": "Haïku du Wukin : Épouvantail",
+        "prices": [
+            100000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 100000.0,
+        "timestamp": 1765122566582
+    },
+    {
+        "gid": 23882,
+        "name": "Haïku des samouraïs : Printemps",
+        "prices": [
+            899999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 899999.0,
+        "timestamp": 1765122567270
+    },
+    {
+        "gid": 23859,
+        "name": "Haïku du dragon : Renaissance",
+        "prices": [
+            699997,
+            0,
+            0,
+            0
+        ],
+        "average_price": 699997.0,
+        "timestamp": 1765122567638
+    },
+    {
+        "gid": 23873,
+        "name": "Haïku du Wukang : Tonnerre",
+        "prices": [
+            799999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 799999.0,
+        "timestamp": 1765122567986
+    },
+    {
+        "gid": 23857,
+        "name": "Haïku du dragon : Passion",
+        "prices": [
+            979999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 979999.0,
+        "timestamp": 1765122568340
+    },
+    {
+        "gid": 23878,
+        "name": "Haïku de Pandala : Akwadala",
+        "prices": [
+            79999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 79999.0,
+        "timestamp": 1765122568654
+    },
+    {
+        "gid": 23867,
+        "name": "Haïku du Wukin : Noir",
+        "prices": [
+            639992,
+            0,
+            0,
+            0
+        ],
+        "average_price": 639992.0,
+        "timestamp": 1765122569021
+    },
+    {
+        "gid": 23886,
+        "name": "Haïku des samouraïs : Nouvel an",
+        "prices": [
+            859999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 859999.0,
+        "timestamp": 1765122569363
+    },
+    {
+        "gid": 23880,
+        "name": "Haïku de Pandala : Aerdala",
+        "prices": [
+            198993,
+            0,
+            0,
+            0
+        ],
+        "average_price": 198993.0,
+        "timestamp": 1765122570377
+    },
+    {
+        "gid": 23860,
+        "name": "Haïku des deux Royaumes : Floraison",
+        "prices": [
+            142000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 142000.0,
+        "timestamp": 1765122570704
+    },
+    {
+        "gid": 23856,
+        "name": "Haïku du dragon : Destruction",
+        "prices": [
+            139199,
+            0,
+            0,
+            0
+        ],
+        "average_price": 139199.0,
+        "timestamp": 1765122571024
+    },
+    {
+        "gid": 23881,
+        "name": "Haïku de Pandala : Grobe",
+        "prices": [
+            207999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 207999.0,
+        "timestamp": 1765122571545
+    },
+    {
+        "gid": 23856,
+        "name": "Haïku du dragon : Destruction",
+        "prices": [
+            139199,
+            0,
+            0,
+            0
+        ],
+        "average_price": 139199.0,
+        "timestamp": 1765122572428
+    },
+    {
+        "gid": 23866,
+        "name": "Haïku du Wukin : Sakoura",
+        "prices": [
+            150000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 150000.0,
+        "timestamp": 1765122572706
+    },
+    {
+        "gid": 23858,
+        "name": "Haïku du dragon : Création",
+        "prices": [
+            592000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 592000.0,
+        "timestamp": 1765122572991
+    },
+    {
+        "gid": 23871,
+        "name": "Haïku du Wukang : Sakoura",
+        "prices": [
+            150000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 150000.0,
+        "timestamp": 1765122573297
+    },
+    {
+        "gid": 23863,
+        "name": "Haïku des deux Royaumes : Sommeil",
+        "prices": [
+            74000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 74000.0,
+        "timestamp": 1765122574643
+    },
+    {
+        "gid": 23865,
+        "name": "Haïku du Wukin : Soir",
+        "prices": [
+            119000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 119000.0,
+        "timestamp": 1765122574973
+    },
+    {
+        "gid": 23870,
+        "name": "Haïku du Wukang : Matin",
+        "prices": [
+            199000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 199000.0,
+        "timestamp": 1765122575299
+    },
+    {
+        "gid": 23862,
+        "name": "Haïku des deux Royaumes : Fermentation",
+        "prices": [
+            168999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 168999.0,
+        "timestamp": 1765122576473
+    },
+    {
+        "gid": 23869,
+        "name": "Haïku du Wukin : Froid",
+        "prices": [
+            149999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 149999.0,
+        "timestamp": 1765122576759
+    },
+    {
+        "gid": 23874,
+        "name": "Haïku du Wukang : Blanc",
+        "prices": [
+            599989,
+            0,
+            0,
+            0
+        ],
+        "average_price": 599989.0,
+        "timestamp": 1765122577050
+    },
+    {
+        "gid": 23875,
+        "name": "Haïku de Pandala : Taverne interdite",
+        "prices": [
+            37998,
+            0,
+            0,
+            0
+        ],
+        "average_price": 37998.0,
+        "timestamp": 1765122577349
+    },
+    {
+        "gid": 11559,
+        "name": "Pierre de Feu",
+        "prices": [
+            399997,
+            0,
+            0,
+            0
+        ],
+        "average_price": 399997.0,
+        "timestamp": 1765122578254
+    },
+    {
+        "gid": 23855,
+        "name": "Haïku du dragon : Résolution",
+        "prices": [
+            138998,
+            0,
+            0,
+            0
+        ],
+        "average_price": 138998.0,
+        "timestamp": 1765122578622
+    },
+    {
+        "gid": 11562,
+        "name": "Pierre d'Air",
+        "prices": [
+            117999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 117999.0,
+        "timestamp": 1765122578997
+    },
+    {
+        "gid": 17850,
+        "name": "Jus de poisson abominable",
+        "prices": [
+            398455,
+            0,
+            0,
+            0
+        ],
+        "average_price": 398455.0,
+        "timestamp": 1765122579352
+    },
+    {
+        "gid": 23876,
+        "name": "Haïku de Pandala : Plantala",
+        "prices": [
+            799897,
+            0,
+            0,
+            0
+        ],
+        "average_price": 799897.0,
+        "timestamp": 1765122579727
+    },
+    {
+        "gid": 20905,
+        "name": "Tablette Waddict",
+        "prices": [
+            999999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 999999.0,
+        "timestamp": 1765122581020
+    },
+    {
+        "gid": 23876,
+        "name": "Haïku de Pandala : Plantala",
+        "prices": [
+            799897,
+            0,
+            0,
+            0
+        ],
+        "average_price": 799897.0,
+        "timestamp": 1765122581778
+    },
+    {
+        "gid": 23861,
+        "name": "Haïku des deux Royaumes : Moisson",
+        "prices": [
+            194000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 194000.0,
+        "timestamp": 1765122582271
+    },
+    {
+        "gid": 23864,
+        "name": "Haïku des deux Royaumes : Passage",
+        "prices": [
+            112000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 112000.0,
+        "timestamp": 1765122582563
+    },
+    {
+        "gid": 11560,
+        "name": "Pierre de Terre",
+        "prices": [
+            148999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 148999.0,
+        "timestamp": 1765122582914
+    },
+    {
+        "gid": 23885,
+        "name": "Haïku des samouraïs : Hiver",
+        "prices": [
+            799999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 799999.0,
+        "timestamp": 1765122583222
+    },
+    {
+        "gid": 11561,
+        "name": "Pierre d'Eau",
+        "prices": [
+            288999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 288999.0,
+        "timestamp": 1765122584822
+    },
+    {
+        "gid": 23883,
+        "name": "Haïku des samouraïs : Été",
+        "prices": [
+            245988,
+            0,
+            0,
+            0
+        ],
+        "average_price": 245988.0,
+        "timestamp": 1765122585211
+    },
+    {
+        "gid": 23884,
+        "name": "Haïku des samouraïs : Automne",
+        "prices": [
+            54990,
+            0,
+            0,
+            0
+        ],
+        "average_price": 54990.0,
+        "timestamp": 1765122585550
+    },
+    {
+        "gid": 23853,
+        "name": "Haïku d'encre : Ombre",
+        "prices": [
+            32996,
+            0,
+            0,
+            0
+        ],
+        "average_price": 32996.0,
+        "timestamp": 1765122585877
+    },
+    {
+        "gid": 23851,
+        "name": "Haïku d'encre : Conte",
+        "prices": [
+            8897,
+            0,
+            0,
+            0
+        ],
+        "average_price": 8897.0,
+        "timestamp": 1765122586233
+    },
+    {
+        "gid": 15904,
+        "name": "Carte de Fouduglen",
+        "prices": [
+            217225,
+            0,
+            0,
+            0
+        ],
+        "average_price": 217225.0,
+        "timestamp": 1765122587186
+    },
+    {
+        "gid": 16040,
+        "name": "Carte de Brumen",
+        "prices": [
+            145999,
+            1850000,
+            0,
+            0
+        ],
+        "average_price": 165499.5,
+        "timestamp": 1765122587547
+    },
+    {
+        "gid": 15378,
+        "name": "Carte de Frakacia",
+        "prices": [
+            252145,
+            0,
+            0,
+            0
+        ],
+        "average_price": 252145.0,
+        "timestamp": 1765122587902
+    },
+    {
+        "gid": 23850,
+        "name": "Haïku d'encre : Mystère",
+        "prices": [
+            12998,
+            0,
+            0,
+            0
+        ],
+        "average_price": 12998.0,
+        "timestamp": 1765122588270
+    },
+    {
+        "gid": 10018,
+        "name": "Schéma de la Pince à Linge",
+        "prices": [
+            7995,
+            0,
+            0,
+            0
+        ],
+        "average_price": 7995.0,
+        "timestamp": 1765122588854
+    },
+    {
+        "gid": 9976,
+        "name": "Grattoir à dos inachevé",
+        "prices": [
+            199999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 199999.0,
+        "timestamp": 1765122590446
+    },
+    {
+        "gid": 23849,
+        "name": "Haïku de papier : Cygrue",
+        "prices": [
+            18499,
+            0,
+            0,
+            0
+        ],
+        "average_price": 18499.0,
+        "timestamp": 1765122590919
+    },
+    {
+        "gid": 23847,
+        "name": "Haïku de papier : Chtigre",
+        "prices": [
+            17497,
+            0,
+            0,
+            0
+        ],
+        "average_price": 17497.0,
+        "timestamp": 1765122591231
+    },
+    {
+        "gid": 23846,
+        "name": "Haïku de papier : Granouille",
+        "prices": [
+            12497,
+            0,
+            0,
+            0
+        ],
+        "average_price": 12497.0,
+        "timestamp": 1765122591579
+    },
+    {
+        "gid": 23845,
+        "name": "Haïku de papier : Qilin",
+        "prices": [
+            9499,
+            0,
+            0,
+            0
+        ],
+        "average_price": 9499.0,
+        "timestamp": 1765122592482
+    },
+    {
+        "gid": 20680,
+        "name": "Cire de Gligli Améliorée",
+        "prices": [
+            20000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 20000.0,
+        "timestamp": 1765122592790
+    },
+    {
+        "gid": 15902,
+        "name": "Fragment de carte de Fouduglen 1/2",
+        "prices": [
+            124984,
+            0,
+            0,
+            0
+        ],
+        "average_price": 124984.0,
+        "timestamp": 1765122593150
+    },
+    {
+        "gid": 1796,
+        "name": "Carpette des sables",
+        "prices": [
+            108997,
+            0,
+            0,
+            0
+        ],
+        "average_price": 108997.0,
+        "timestamp": 1765122593463
+    },
+    {
+        "gid": 23877,
+        "name": "Haïku de Pandala : Terrdala",
+        "prices": [
+            79000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 79000.0,
+        "timestamp": 1765122594290
+    },
+    {
+        "gid": 9975,
+        "name": "Manche du Grattoir",
+        "prices": [
+            350000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 350000.0,
+        "timestamp": 1765122594804
+    },
+    {
+        "gid": 1796,
+        "name": "Carpette des sables",
+        "prices": [
+            108997,
+            0,
+            0,
+            0
+        ],
+        "average_price": 108997.0,
+        "timestamp": 1765122595124
+    },
+    {
+        "gid": 9975,
+        "name": "Manche du Grattoir",
+        "prices": [
+            350000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 350000.0,
+        "timestamp": 1765122595492
+    },
+    {
+        "gid": 15380,
+        "name": "Fragment de carte de Frakacia 2/3",
+        "prices": [
+            93982,
+            0,
+            0,
+            0
+        ],
+        "average_price": 93982.0,
+        "timestamp": 1765122595820
+    },
+    {
+        "gid": 23852,
+        "name": "Haïku d'encre : Illusion",
+        "prices": [
+            12000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 12000.0,
+        "timestamp": 1765122596133
+    },
+    {
+        "gid": 2032,
+        "name": "Orge en Sucre",
+        "prices": [
+            499998,
+            0,
+            0,
+            0
+        ],
+        "average_price": 499998.0,
+        "timestamp": 1765122616853
+    },
+    {
+        "gid": 28279,
+        "name": "Pièces de module",
+        "prices": [
+            149999,
+            0,
+            0,
+            0
+        ],
+        "average_price": 149999.0,
+        "timestamp": 1765122617945
+    },
+    {
+        "gid": 15903,
+        "name": "Fragment de carte de Fouduglen 2/2",
+        "prices": [
+            99990,
+            0,
+            0,
+            0
+        ],
+        "average_price": 99990.0,
+        "timestamp": 1765122618389
+    },
+    {
+        "gid": 16024,
+        "name": "Fragment de carte de Brumen 3/3",
+        "prices": [
+            30000,
+            0,
+            0,
+            0
+        ],
+        "average_price": 30000.0,
+        "timestamp": 1765122619240
+    },
+    {
+        "gid": 16022,
+        "name": "Fragment de carte de Brumen 1/3",
+        "prices": [
+            19995,
+            0,
+            0,
+            0
+        ],
+        "average_price": 19995.0,
+        "timestamp": 1765122619606
+    },
+    {
+        "gid": 15379,
+        "name": "Fragment de carte de Frakacia 1/3",
+        "prices": [
+            14909,
+            0,
+            0,
+            0
+        ],
+        "average_price": 14909.0,
+        "timestamp": 1765122620059
+    }
+]
