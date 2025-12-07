@@ -1,7 +1,8 @@
 import json
 import os
-from d2o_reader import D2OReader
-from d2i_reader import D2IReader
+from core.d2o_reader import D2OReader
+from core.d2i_reader import D2IReader
+from utils.paths import get_resource_path
 
 class GameData:
     def __init__(self):
@@ -16,30 +17,36 @@ class GameData:
         try:
             print("Chargement des données de jeu...")
             
+            d2o_path = get_resource_path("dofus_data/common/Items.d2o")
+            d2i_path = get_resource_path("dofus_data/i18n/i18n_fr.d2i")
+            json_path = get_resource_path("dofus_data/i18n_fr.json")
+            items_json_path = get_resource_path("dofus_data/Items.json")
+            user_items_path = get_resource_path("dofus_data/user_items.json")
+
             # Chargement des lecteurs binaires si disponibles
-            if os.path.exists("dofus_data/common/Items.d2o"):
-                self.d2o_reader = D2OReader("dofus_data/common/Items.d2o")
+            if os.path.exists(d2o_path):
+                self.d2o_reader = D2OReader(d2o_path)
                 print("Lecteur D2O initialisé.")
                 
-            if os.path.exists("dofus_data/i18n/i18n_fr.d2i"):
-                self.d2i_reader = D2IReader("dofus_data/i18n/i18n_fr.d2i")
+            if os.path.exists(d2i_path):
+                self.d2i_reader = D2IReader(d2i_path)
                 print("Lecteur D2I initialisé.")
 
             # Chargement des textes (i18n) - Fallback JSON
-            if os.path.exists("dofus_data/i18n_fr.json"):
-                with open("dofus_data/i18n_fr.json", "r", encoding="utf-8") as f:
+            if os.path.exists(json_path):
+                with open(json_path, "r", encoding="utf-8") as f:
                     self.i18n = json.load(f).get("texts", {})
             
             # Chargement des items officiels - Fallback JSON
-            if os.path.exists("dofus_data/Items.json"):
-                with open("dofus_data/Items.json", "r", encoding="utf-8") as f:
+            if os.path.exists(items_json_path):
+                with open(items_json_path, "r", encoding="utf-8") as f:
                     items_list = json.load(f)
                     for item in items_list:
                         self.items[item["id"]] = item
 
             # Chargement des items utilisateur (apprentissage)
-            if os.path.exists("dofus_data/user_items.json"):
-                with open("dofus_data/user_items.json", "r", encoding="utf-8") as f:
+            if os.path.exists(user_items_path):
+                with open(user_items_path, "r", encoding="utf-8") as f:
                     self.user_items = json.load(f)
                 
             self.loaded = True
@@ -52,7 +59,8 @@ class GameData:
         """Enregistre un nouveau mapping GID -> Nom."""
         self.user_items[str(gid)] = name
         try:
-            with open("dofus_data/user_items.json", "w", encoding="utf-8") as f:
+            user_items_path = get_resource_path("dofus_data/user_items.json")
+            with open(user_items_path, "w", encoding="utf-8") as f:
                 json.dump(self.user_items, f, indent=4, ensure_ascii=False)
             print(f"Item appris : {name} ({gid})")
         except Exception as e:

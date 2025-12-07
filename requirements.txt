@@ -1,2 +1,6 @@
 scapy
 colorama
+customtkinter
+Pillow
+requests
+pyinstaller
