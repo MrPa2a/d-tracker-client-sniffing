@@ -40,6 +40,10 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+
+# Filter out unnecessary Tcl/Tk data files (like tzdata which contains thousands of city files)
+a.datas = [x for x in a.datas if 'tzdata' not in x[0]]
+
 coll = COLLECT(
     exe,
     a.binaries,
