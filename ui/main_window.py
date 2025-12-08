@@ -269,7 +269,8 @@ class MainWindow(ctk.CTk):
         self.uploader.add_observation(obs)
 
     def _update_ui_with_obs(self, obs):
-        print(f"[OBS] {obs['name']} - Moy: {obs['average_price']} k")
+        category = obs.get('category', 'Inconnue')
+        print(f"[OBS] {obs['name']} ({category}) - Moy: {obs['average_price']} k")
         
         # Update Session Info
         self.session_count += 1

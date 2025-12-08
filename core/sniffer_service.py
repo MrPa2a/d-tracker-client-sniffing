@@ -82,9 +82,14 @@ class SnifferService(threading.Thread):
                             filtered_prices, average = self.filter.filter_prices(prices)
                             
                             if average > 0:
+                                category = game_data.get_item_category(gid)
+                                if not category:
+                                    category = "Catégorie Inconnue"
+
                                 observation = {
                                     "gid": gid,
                                     "name": name,
+                                    "category": category,
                                     "prices": prices, # Keep original prices for debug/upload?
                                     "average_price": average,
                                     "timestamp": int(time.time() * 1000)

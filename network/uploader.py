@@ -47,7 +47,8 @@ class BatchUploader(threading.Thread):
             "nb_lots": nb_lots,
             "source_client": "dofus-tracker-client-v3",
             "client_version": "3.0.0",
-            "raw_item_name": obs['name'] # Pour l'instant identique
+            "raw_item_name": obs['name'], # Pour l'instant identique
+            "category": obs.get('category')
         }
         
         with self.lock:
