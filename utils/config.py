@@ -1,7 +1,17 @@
 import json
 import os
+import sys
 
-CONFIG_FILE = "config.json"
+def get_app_path():
+    """Returns the base path of the application (executable dir or project root)."""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        return os.path.dirname(sys.executable)
+    else:
+        # Running as script: utils/config.py is one level deep from root
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+CONFIG_FILE = os.path.join(get_app_path(), "config.json")
 
 DOFUS_SERVERS = [
     "Brial",

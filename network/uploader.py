@@ -90,11 +90,19 @@ class BatchUploader(threading.Thread):
         if not batch:
             return
 
+        # Force reload config from disk to pick up changes
+        try:
+            config_manager.load()
+        except Exception as e:
+            print(f"[Uploader] Erreur rechargement config: {e}")
+
         # Refresh token from config
         self.api_token = config_manager.get("api_token")
 
         if not self.api_token:
-            print("[Uploader] ⚠️ Erreur: Token API manquant dans config.json. Envoi annulé.")
+            print(f"[Uploader] ⚠️ Erreur: Token API manquant dans config.json. Envoi annulé.")
+            # Debug: print current config keys/values to understand why
+            # print(f"[Debug] Config actuelle: {config_manager.config}")
             return
 
         try:

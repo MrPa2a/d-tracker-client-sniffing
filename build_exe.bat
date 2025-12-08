@@ -15,6 +15,9 @@ python -m PyInstaller --noconfirm DofusTracker.spec
 echo Copying Npcap installer...
 if exist redist\npcap-installer.exe copy redist\npcap-installer.exe dist\DofusTracker\
 
+echo Copying config.json...
+if exist config.json copy config.json dist\DofusTracker\
+
 echo Build complete. Executable is in dist/DofusTracker/DofusTracker.exe
 
 echo === Creating ZIP archive ===
