@@ -15,6 +15,7 @@ class GameData:
         self.known_items = {} # Mapping GID -> Name récupéré du serveur (communauté)
         self.loaded = False
         self.d2o_reader = None
+        self.item_types_reader = None
         self.d2i_reader = None
 
     def load(self):
@@ -22,6 +23,7 @@ class GameData:
             print("Chargement des données de jeu...")
             
             d2o_path = get_resource_path("dofus_data/common/Items.d2o")
+            item_types_path = get_resource_path("dofus_data/common/ItemTypes.d2o")
             d2i_path = get_resource_path("dofus_data/i18n/i18n_fr.d2i")
             json_path = get_resource_path("dofus_data/i18n_fr.json")
             items_json_path = get_resource_path("dofus_data/Items.json")
@@ -31,6 +33,10 @@ class GameData:
             if os.path.exists(d2o_path):
                 self.d2o_reader = D2OReader(d2o_path)
                 print("Lecteur D2O initialisé.")
+            
+            if os.path.exists(item_types_path):
+                self.item_types_reader = D2OReader(item_types_path)
+                print("Lecteur ItemTypes D2O initialisé.")
                 
             if os.path.exists(d2i_path):
                 self.d2i_reader = D2IReader(d2i_path)
@@ -94,21 +100,49 @@ class GameData:
                 json.dump(self.user_items, f, indent=4, ensure_ascii=False)
             print(f"Item appris : {name} ({gid})")
             
+            # Récupération de la catégorie
+            category = self.get_item_category(gid)
+            if not category:
+                category = "Catégorie Inconnue"
+            
             # Push to server in background
-            threading.Thread(target=self._push_item_to_server, args=(gid, name), daemon=True).start()
+            threading.Thread(target=self._push_item_to_server, args=(gid, name, category), daemon=True).start()
                 
         except Exception as e:
             print(f"Erreur sauvegarde item : {e}")
 
-    def _push_item_to_server(self, gid, name):
+    def _push_item_to_server(self, gid, name, category):
         try:
             api_url = config_manager.get("api_url")
             if api_url:
                 base_url = api_url.replace("/ingest", "")
                 url = f"{base_url}/known_items"
-                requests.post(url, json={"gid": int(gid), "name": name}, timeout=10)
+                payload = {"gid": int(gid), "name": name, "category": category}
+                requests.post(url, json=payload, timeout=10)
         except Exception as e:
             print(f"Erreur envoi item serveur: {e}")
+
+    def get_item_category(self, gid):
+        if not self.loaded:
+            self.load()
+            
+        if self.d2o_reader and self.item_types_reader and self.d2i_reader:
+            try:
+                # Get Item details (including TypeID)
+                item_details = self.d2o_reader.get_details(int(gid))
+                if item_details:
+                    type_id = item_details.get("type_id")
+                    if type_id:
+                        # Get Type details (including NameID)
+                        type_details = self.item_types_reader.get_details(type_id)
+                        if type_details:
+                            type_name_id = type_details.get("name_id")
+                            if type_name_id:
+                                return self.d2i_reader.get_text(type_name_id)
+            except Exception as e:
+                print(f"Erreur lecture catégorie pour {gid}: {e}")
+        
+        return None
 
     def get_item_name(self, gid):
         if not self.loaded:

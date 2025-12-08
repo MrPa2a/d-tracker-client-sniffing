@@ -23,6 +23,12 @@ class D2OReader:
             self.index[item_id].append(offset)
 
     def get_name_id(self, item_id):
+        details = self.get_details(item_id)
+        if details:
+            return details["name_id"]
+        return None
+
+    def get_details(self, item_id):
         if item_id not in self.index:
             return None
         
@@ -30,18 +36,23 @@ class D2OReader:
         for offset in offsets:
             self.file.seek(offset)
             
-            # Structure: ClassID (4), ID (4), NameID (4)
             try:
-                class_id = struct.unpack(">I", self.file.read(4))[0]
-                # We only care about Item class (ID 4 seems to be Item)
-                # But let's be lenient and just check if NameID is non-zero
+                # Read first 4 ints: ClassID, ID, NameID, TypeID/SuperTypeID
+                data = []
+                for _ in range(4):
+                    data.append(struct.unpack(">I", self.file.read(4))[0])
                 
-                # Skip ID (4)
-                self.file.read(4)
+                class_id = data[0]
+                obj_id = data[1]
+                name_id = data[2]
+                type_id = data[3]
                 
-                name_id = struct.unpack(">I", self.file.read(4))[0]
-                if name_id != 0:
-                    return name_id
+                return {
+                    "class_id": class_id,
+                    "id": obj_id,
+                    "name_id": name_id,
+                    "type_id": type_id
+                }
             except struct.error:
                 continue
                 
