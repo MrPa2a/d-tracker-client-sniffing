@@ -14,7 +14,7 @@ class SnifferService(threading.Thread):
         self.on_unknown_item = on_unknown_item
         self.running = False
         self.filter = AnomalyFilter(
-            min_price=config_manager.get("min_price_threshold", 10),
+            min_price=config_manager.get("min_price_threshold", 0),
             max_price=config_manager.get("max_price_threshold", 1000000000)
         )
         self.daemon = True # Kill thread when main app closes
