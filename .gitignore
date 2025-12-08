@@ -6,3 +6,5 @@ dist/
 build/
 
 config.json
+
+observations.json
