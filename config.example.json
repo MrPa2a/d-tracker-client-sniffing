@@ -1,0 +1,10 @@
+{
+    "server": "Rafal",
+    "api_url": "https://your-backend-url.vercel.app/api/ingest",
+    "api_token": "YOUR_SECRET_TOKEN_HERE",
+    "capture_interface": null,
+    "min_price_threshold": 10,
+    "max_price_threshold": 1000000000,
+    "outlier_threshold_percent": 500,
+    "overlay_mode": "Auto"
+}
