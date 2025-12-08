@@ -40,6 +40,7 @@ class BatchUploader(threading.Thread):
 
         payload = {
             "item_name": obs['name'],
+            "ankama_id": obs.get('gid'),
             "server": self.server,
             "captured_at": captured_iso,
             "price_unit_avg": obs['average_price'],
