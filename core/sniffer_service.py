@@ -75,7 +75,8 @@ class SnifferService(threading.Thread):
                                     name = self.on_unknown_item(gid)
                                 
                                 if not name:
-                                    name = f"Unknown Item ({gid})"
+                                    print(f"[Sniffer] Item {gid} ignored (no name provided).")
+                                    return
                                 
                             # Filter anomalies
                             filtered_prices, average = self.filter.filter_prices(prices)
