@@ -3,6 +3,7 @@ import threading
 import sys
 import os
 from tkinter import messagebox
+from PIL import Image, ImageTk
 from ui.overlay import OverlayWindow
 from core.sniffer_service import SnifferService
 from core.game_data import game_data
@@ -38,6 +39,27 @@ class MainWindow(ctk.CTk):
 
         self.title("Dofus Tracker Client V3")
         self.geometry("600x600")
+        
+        # Set window icon
+        try:
+            # Gestion des chemins (Dev vs PyInstaller)
+            if getattr(sys, 'frozen', False):
+                base_path = sys._MEIPASS
+            else:
+                base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+            icon_ico = os.path.join(base_path, "icon.ico")
+            icon_png = os.path.join(base_path, "icon.png")
+            
+            # Priorité au .ico pour Windows (Taskbar + Titlebar)
+            if os.path.exists(icon_ico):
+                self.iconbitmap(icon_ico)
+            elif os.path.exists(icon_png):
+                img = Image.open(icon_png)
+                photo = ImageTk.PhotoImage(img)
+                self.wm_iconphoto(True, photo)
+        except Exception as e:
+            print(f"Could not load icon: {e}")
         
         self.sniffer = None
         self.uploader = BatchUploader()

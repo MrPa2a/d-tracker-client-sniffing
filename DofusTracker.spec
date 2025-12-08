@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('dofus_data', 'dofus_data')]
+datas = [('dofus_data', 'dofus_data'), ('icon.ico', '.'), ('icon.png', '.')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('customtkinter')
@@ -39,6 +39,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='icon.ico',
 )
 
 # Filter out unnecessary Tcl/Tk data files (like tzdata which contains thousands of city files)
