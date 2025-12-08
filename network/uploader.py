@@ -90,16 +90,21 @@ class BatchUploader(threading.Thread):
         if not batch:
             return
 
+        # Refresh token from config
+        self.api_token = config_manager.get("api_token")
+
+        if not self.api_token:
+            print("[Uploader] ⚠️ Erreur: Token API manquant dans config.json. Envoi annulé.")
+            return
+
         try:
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_token}"
             }
             
-            # Si pas de token configuré, on tente sans (ou on log un warning)
-            if not self.api_token:
-                # print("[Uploader] Attention: Pas de token API configuré.")
-                pass
+            # Debug (à retirer plus tard)
+            # print(f"[Uploader] Token utilisé: {self.api_token[:5]}...{self.api_token[-5:]}")
 
             # print(f"[Uploader] Envoi vers {self.api_url}")
             response = requests.post(self.api_url, json=batch, headers=headers, timeout=10)
@@ -108,6 +113,8 @@ class BatchUploader(threading.Thread):
                 print(f"[Uploader] {len(batch)} observations envoyées avec succès.")
             else:
                 print(f"[Uploader] Erreur envoi ({response.status_code}): {response.text}")
+                if response.status_code == 401:
+                     print(f"[Uploader] Vérifiez que votre token dans config.json correspond à celui du backend.")
                 # En cas d'erreur, on pourrait remettre dans la queue, mais attention aux boucles infinies
                 # Pour l'instant on perd les données (ou on pourrait les dumper dans un fichier fail)
                 
