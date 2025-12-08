@@ -2,6 +2,20 @@
 
 The advanced data collection client for Dofus Tracker. It uses packet sniffing (Scapy) to intercept market data directly from the game network traffic, ensuring 100% accuracy without OCR.
 
+## ⚖️ Disclaimer
+
+**This project is developed strictly for educational purposes.**
+
+It is designed to explore network traffic analysis and data visualization. It is **not a bot** and does not automate any actions in the game.
+
+**Usage Warning:**
+The use of third-party tools to analyze game data may be against the Terms of Service of Ankama Games.
+*   **I strongly advise against using this tool on official servers.**
+*   I am not responsible for any consequences resulting from the use of this software.
+*   Please respect the game and its community. Use this project only to learn new things.
+
+*Dofus is a registered trademark of Ankama Games. This project is not affiliated with Ankama Games.*
+
 ## ✨ Features
 
 *   **Packet Sniffing**: Intercepts `ExchangeTypesItemsExchangerDescriptionForUserMessage` packets to read market prices.
