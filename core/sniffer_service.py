@@ -1,7 +1,7 @@
 import threading
 import time
 from scapy.all import sniff, TCP, IP, Raw
-from core.packet_parser import parse_iqb_packet, read_varint
+from core.packet_parser import parse_iqb_packet, parse_jbo_packet, read_varint
 from core.game_data import game_data
 from core.anomaly_filter import AnomalyFilter
 from utils.config import config_manager
@@ -13,6 +13,7 @@ class SnifferService(threading.Thread):
         self.on_error = on_error
         self.on_unknown_item = on_unknown_item
         self.running = False
+        self.dump_packets = False # Enable packet dumping for debug
         self.filter = AnomalyFilter(
             min_price=config_manager.get("min_price_threshold", 0),
             max_price=config_manager.get("max_price_threshold", 1000000000)
@@ -51,21 +52,46 @@ class SnifferService(threading.Thread):
         if src_port == 5555 and packet.haslayer(Raw):
             payload = packet[Raw].load
             
-            # Search for 'type.ankama.com/iqb'
-            search_pattern = b'type.ankama.com/iqb'
-            idx = payload.find(search_pattern)
+            if self.dump_packets:
+                with open("packet_dump.bin", "ab") as f:
+                    f.write(payload)
+            
+            # Search for 'type.ankama.com/'
+            prefix = b'type.ankama.com/'
+            idx = payload.find(prefix)
             
             if idx != -1:
                 try:
-                    curr = idx + len(search_pattern)
+                    # Determine type suffix
+                    # Heuristic: Scan for 0x12 (Tag for field 2) within reasonable distance
+                    type_end = -1
+                    for i in range(10):
+                        check_pos = idx + len(prefix) + i
+                        if check_pos < len(payload) and payload[check_pos] == 0x12:
+                            type_end = check_pos
+                            break
                     
-                    if curr < len(payload) and payload[curr] == 0x12:
-                        curr += 1 # Skip Tag
+                    if type_end != -1:
+                        type_suffix = payload[idx + len(prefix) : type_end]
+                        # print(f"[Sniffer] Detected type: {type_suffix}")
+                        
+                        curr = type_end + 1 # Skip Tag 0x12
                         msg_len, curr = read_varint(payload, curr)
                         
                         msg_payload = payload[curr : curr + msg_len]
                         
-                        gid, prices = parse_iqb_packet(msg_payload)
+                        gid = 0
+                        prices = []
+                        
+                        if type_suffix == b'iqb':
+                            gid, prices = parse_iqb_packet(msg_payload)
+                        elif type_suffix == b'jbo':
+                            gid, prices = parse_jbo_packet(msg_payload)
+                        else:
+                            # Try both just in case
+                            gid, prices = parse_jbo_packet(msg_payload)
+                            if not gid or not prices:
+                                gid, prices = parse_iqb_packet(msg_payload)
                         
                         if gid and prices:
                             name = game_data.get_item_name(gid)

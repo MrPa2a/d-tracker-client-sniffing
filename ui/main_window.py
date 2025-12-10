@@ -26,6 +26,61 @@ class ConsoleRedirector:
     def flush(self):
         pass
 
+class CenteredInputDialog(ctk.CTkToplevel):
+    def __init__(self, parent, title, text):
+        super().__init__(parent)
+        self.title(title)
+        
+        # Dimensions
+        width = 350
+        height = 180
+        
+        # Center on parent
+        try:
+            x = parent.winfo_x() + (parent.winfo_width() // 2) - (width // 2)
+            y = parent.winfo_y() + (parent.winfo_height() // 2) - (height // 2)
+            # Ensure it's not off-screen (basic check)
+            x = max(0, x)
+            y = max(0, y)
+        except:
+            x = 100
+            y = 100
+            
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.resizable(False, False)
+        
+        self.result = None
+        
+        self.label = ctk.CTkLabel(self, text=text, wraplength=300)
+        self.label.pack(pady=(20, 10))
+        
+        self.entry = ctk.CTkEntry(self)
+        self.entry.pack(pady=5, padx=20, fill="x")
+        self.entry.bind("<Return>", self.on_ok)
+        self.entry.focus_set()
+        
+        self.btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.btn_frame.pack(pady=10)
+        
+        self.ok_btn = ctk.CTkButton(self.btn_frame, text="OK", command=self.on_ok, width=100)
+        self.ok_btn.pack(side="left", padx=5)
+        
+        self.cancel_btn = ctk.CTkButton(self.btn_frame, text="Annuler", command=self.on_cancel, width=100, fg_color="transparent", border_width=1)
+        self.cancel_btn.pack(side="left", padx=5)
+        
+        self.protocol("WM_DELETE_WINDOW", self.on_cancel)
+        self.transient(parent)
+        self.grab_set()
+        self.wait_window(self)
+        
+    def on_ok(self, event=None):
+        self.result = self.entry.get()
+        self.destroy()
+        
+    def on_cancel(self):
+        self.result = None
+        self.destroy()
+
 class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -217,8 +272,8 @@ class MainWindow(ctk.CTk):
     def _ask_item_name(self):
         gid = self.unknown_item_gid
         # Show dialog
-        dialog = ctk.CTkInputDialog(text=f"Item inconnu détecté (GID: {gid}).\nEntrez le nom de l'objet :", title="Item Inconnu")
-        name = dialog.get_input()
+        dialog = CenteredInputDialog(self, text=f"Item inconnu détecté (GID: {gid}).\nEntrez le nom de l'objet :", title="Item Inconnu")
+        name = dialog.result
         
         if name and name.strip():
             self.unknown_item_name = name.strip()
