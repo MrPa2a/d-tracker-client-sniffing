@@ -1,7 +1,7 @@
 import threading
 import time
 from scapy.all import sniff, TCP, IP, Raw
-from core.packet_parser import parse_iqb_packet, parse_jbo_packet, read_varint
+from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, read_varint
 from core.game_data import game_data
 from core.anomaly_filter import AnomalyFilter
 from utils.config import config_manager
@@ -87,9 +87,13 @@ class SnifferService(threading.Thread):
                             gid, prices = parse_iqb_packet(msg_payload)
                         elif type_suffix == b'jbo':
                             gid, prices = parse_jbo_packet(msg_payload)
+                        elif type_suffix == b'jcg':
+                            gid, prices = parse_jcg_packet(msg_payload)
                         else:
-                            # Try both just in case
-                            gid, prices = parse_jbo_packet(msg_payload)
+                            # Try all just in case
+                            gid, prices = parse_jcg_packet(msg_payload)
+                            if not gid or not prices:
+                                gid, prices = parse_jbo_packet(msg_payload)
                             if not gid or not prices:
                                 gid, prices = parse_iqb_packet(msg_payload)
                         
