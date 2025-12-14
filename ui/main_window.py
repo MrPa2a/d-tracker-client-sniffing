@@ -2,6 +2,7 @@ import customtkinter as ctk
 import threading
 import sys
 import os
+import time
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from ui.overlay import OverlayWindow
@@ -27,13 +28,13 @@ class ConsoleRedirector:
         pass
 
 class CenteredInputDialog(ctk.CTkToplevel):
-    def __init__(self, parent, title, text):
+    def __init__(self, parent, title, text, prices=None, strict_mode=False):
         super().__init__(parent)
         self.title(title)
         
         # Dimensions
         width = 350
-        height = 180
+        height = 240 if prices else 180
         
         # Center on parent
         try:
@@ -51,8 +52,33 @@ class CenteredInputDialog(ctk.CTkToplevel):
         
         self.result = None
         
+        if strict_mode:
+            self.attributes("-topmost", True)
+            self.protocol("WM_DELETE_WINDOW", lambda: None)
+        else:
+            self.protocol("WM_DELETE_WINDOW", self.on_cancel)
+        
         self.label = ctk.CTkLabel(self, text=text, wraplength=300)
         self.label.pack(pady=(20, 10))
+        
+        if prices:
+            price_text = "Prix détectés :\n"
+            labels = ["x1", "x10", "x100", "x1000"]
+            
+            # Take first 4 values (one line)
+            current_prices = prices[:4]
+            while len(current_prices) < 4:
+                current_prices.append(0)
+                
+            parts = []
+            for i, p in enumerate(current_prices):
+                if p > 0:
+                    parts.append(f"{labels[i]}: {p:,}")
+            
+            price_text += " | ".join(parts)
+            
+            self.price_label = ctk.CTkLabel(self, text=price_text, wraplength=300, text_color=("gray50", "gray70"))
+            self.price_label.pack(pady=(0, 10))
         
         self.entry = ctk.CTkEntry(self)
         self.entry.pack(pady=5, padx=20, fill="x")
@@ -65,10 +91,9 @@ class CenteredInputDialog(ctk.CTkToplevel):
         self.ok_btn = ctk.CTkButton(self.btn_frame, text="OK", command=self.on_ok, width=100)
         self.ok_btn.pack(side="left", padx=5)
         
-        self.cancel_btn = ctk.CTkButton(self.btn_frame, text="Annuler", command=self.on_cancel, width=100, fg_color="transparent", border_width=1)
+        self.cancel_btn = ctk.CTkButton(self.btn_frame, text="Ignorer" if strict_mode else "Annuler", command=self.on_cancel, width=100, fg_color="transparent", border_width=1)
         self.cancel_btn.pack(side="left", padx=5)
         
-        self.protocol("WM_DELETE_WINDOW", self.on_cancel)
         self.transient(parent)
         self.grab_set()
         self.wait_window(self)
@@ -121,6 +146,10 @@ class MainWindow(ctk.CTk):
         self.overlay = None
         self.session_count = 0
         
+        # Queue for unknown items
+        self.unknown_items_queue = []
+        self.is_asking_name = False
+        
         self.create_widgets()
         
         # Redirect stdout to log console
@@ -159,6 +188,11 @@ class MainWindow(ctk.CTk):
         self.overlay_combo = ctk.CTkComboBox(self.config_frame, values=["Auto", "Oui", "Non"], command=self.on_overlay_change, state="readonly")
         self.overlay_combo.set(config_manager.get("overlay_mode", "Auto"))
         self.overlay_combo.grid(row=1, column=1, padx=10, pady=5, sticky="ew")
+        
+        # Strict Popup Mode
+        self.strict_popup_var = ctk.BooleanVar(value=config_manager.get("strict_popup", False))
+        self.strict_popup_check = ctk.CTkCheckBox(self.config_frame, text="Popup Strict (Premier plan)", variable=self.strict_popup_var, command=self.on_strict_popup_change)
+        self.strict_popup_check.grid(row=2, column=1, padx=10, pady=5, sticky="w")
         
         # API Token (Hidden/Hardcoded)
         # self.token_label = ctk.CTkLabel(self.config_frame, text="API Token:")
@@ -222,6 +256,11 @@ class MainWindow(ctk.CTk):
         self._update_overlay_visibility()
         print(f"Mode overlay changé pour : {choice}")
 
+    def on_strict_popup_change(self):
+        val = self.strict_popup_var.get()
+        config_manager.set("strict_popup", val)
+        print(f"Mode popup strict changé pour : {val}")
+
     def _update_overlay_visibility(self):
         mode = config_manager.get("overlay_mode", "Auto")
         should_show = False
@@ -255,33 +294,65 @@ class MainWindow(ctk.CTk):
         
         self._update_overlay_visibility()
 
-    def on_unknown_item(self, gid):
+    def on_unknown_item(self, gid, prices):
         # This runs in sniffer thread. We need to ask main thread.
-        self.unknown_item_gid = gid
-        self.unknown_item_name = None
-        self.unknown_item_event = threading.Event()
+        # Add to queue and schedule processing
+        self.unknown_items_queue.append((gid, prices))
+        self.after(0, self._process_unknown_item_queue)
         
-        # Schedule dialog on main thread
-        self.after(0, self._ask_item_name)
-        
-        # Wait for result (blocking the sniffer thread)
-        self.unknown_item_event.wait()
-        
-        return self.unknown_item_name
+        # Return None immediately to unblock sniffer
+        return None
 
-    def _ask_item_name(self):
-        gid = self.unknown_item_gid
+    def _process_unknown_item_queue(self):
+        if self.is_asking_name:
+            return
+            
+        if not self.unknown_items_queue:
+            return
+            
+        self.is_asking_name = True
+        gid, prices = self.unknown_items_queue.pop(0)
+        self._ask_item_name(gid, prices)
+
+    def _ask_item_name(self, gid, prices):
         # Show dialog
-        dialog = CenteredInputDialog(self, text=f"Item inconnu détecté (GID: {gid}).\nEntrez le nom de l'objet :", title="Item Inconnu")
+        strict_mode = self.strict_popup_var.get()
+        dialog = CenteredInputDialog(self, text=f"Item inconnu détecté (GID: {gid}).\nEntrez le nom de l'objet :", title="Item Inconnu", prices=prices, strict_mode=strict_mode)
         name = dialog.result
         
         if name and name.strip():
-            self.unknown_item_name = name.strip()
+            clean_name = name.strip()
             # Save it immediately
-            game_data.save_user_item(gid, name.strip())
-            print(f"Item {gid} identifié comme : {name.strip()}")
+            game_data.save_user_item(gid, clean_name)
+            print(f"Item {gid} identifié comme : {clean_name}")
             
-        self.unknown_item_event.set()
+            # Process the observation now that we have the name
+            try:
+                # Re-use filter logic from sniffer (accessing via self.sniffer if available)
+                if self.sniffer:
+                    filtered_prices, average = self.sniffer.filter.filter_prices(prices)
+                    
+                    if average > 0:
+                        category = game_data.get_item_category(gid)
+                        if not category:
+                            category = "Catégorie Inconnue"
+
+                        observation = {
+                            "gid": gid,
+                            "name": clean_name,
+                            "category": category,
+                            "prices": prices,
+                            "average_price": average,
+                            "timestamp": int(time.time() * 1000)
+                        }
+                        
+                        self.on_observation(observation)
+            except Exception as e:
+                print(f"Erreur lors du traitement post-identification : {e}")
+            
+        self.is_asking_name = False
+        # Process next item if any
+        self.after(100, self._process_unknown_item_queue)
 
     def on_sniffer_error(self, error_msg):
         self.stop_sniffer()

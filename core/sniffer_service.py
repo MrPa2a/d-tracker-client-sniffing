@@ -101,10 +101,11 @@ class SnifferService(threading.Thread):
                             name = game_data.get_item_name(gid)
                             if not name:
                                 if self.on_unknown_item:
-                                    # Ask UI to resolve name (blocking call ideally)
-                                    name = self.on_unknown_item(gid)
-                                
-                                if not name:
+                                    # Notify UI about unknown item (non-blocking)
+                                    self.on_unknown_item(gid, prices)
+                                    print(f"[Sniffer] Item {gid} unknown. Delegated to UI.")
+                                    return
+                                else:
                                     print(f"[Sniffer] Item {gid} ignored (no name provided).")
                                     return
                                 
