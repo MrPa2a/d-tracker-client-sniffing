@@ -37,21 +37,25 @@ class D2OReader:
             self.file.seek(offset)
             
             try:
-                # Read first 4 ints: ClassID, ID, NameID, TypeID/SuperTypeID
+                # Read first 6 ints: ClassID, ID, NameID, TypeID, DescriptionID, IconID
                 data = []
-                for _ in range(4):
+                for _ in range(6):
                     data.append(struct.unpack(">I", self.file.read(4))[0])
                 
                 class_id = data[0]
                 obj_id = data[1]
                 name_id = data[2]
                 type_id = data[3]
+                description_id = data[4]
+                icon_id = data[5]
                 
                 return {
                     "class_id": class_id,
                     "id": obj_id,
                     "name_id": name_id,
-                    "type_id": type_id
+                    "type_id": type_id,
+                    "description_id": description_id,
+                    "icon_id": icon_id
                 }
             except struct.error:
                 continue

@@ -408,13 +408,16 @@ class MainWindow(ctk.CTk):
             self.overlay.update_info(obs['name'], obs['average_price'])
     
     def on_close(self):
-        queue_size = self.uploader.get_queue_size()
-        if queue_size == 0:
+        upload_queue = self.uploader.get_queue_size()
+        asset_queue = game_data.asset_worker.get_queue_size() if game_data.asset_worker else 0
+        total_queue = upload_queue + asset_queue
+
+        if total_queue == 0:
             self.destroy()
             return
             
         # Show dialog
-        self.show_closing_dialog(queue_size)
+        self.show_closing_dialog(total_queue)
 
     def show_closing_dialog(self, initial_count):
         self.closing_dialog = ctk.CTkToplevel(self)
@@ -440,12 +443,15 @@ class MainWindow(ctk.CTk):
         if not self.closing_dialog.winfo_exists():
             return
             
-        queue_size = self.uploader.get_queue_size()
-        if queue_size == 0:
+        upload_queue = self.uploader.get_queue_size()
+        asset_queue = game_data.asset_worker.get_queue_size() if game_data.asset_worker else 0
+        total_queue = upload_queue + asset_queue
+
+        if total_queue == 0:
             self.closing_dialog.destroy()
             self.destroy()
         else:
-            self.lbl_closing.configure(text=f"Envoi des données en cours...\n{queue_size} éléments restants")
+            self.lbl_closing.configure(text=f"Envoi des données en cours...\n{total_queue} éléments restants")
             self.after(1000, self.check_upload_status)
 
     def force_close(self):
@@ -458,4 +464,6 @@ class MainWindow(ctk.CTk):
             self.sniffer.stop()
         if self.uploader:
             self.uploader.stop()
+        if game_data.asset_worker:
+            game_data.asset_worker.stop()
         super().destroy()

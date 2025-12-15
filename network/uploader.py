@@ -4,6 +4,7 @@ import requests
 import json
 from datetime import datetime, timezone
 from utils.config import config_manager
+from core.game_data import game_data
 
 class BatchUploader(threading.Thread):
     def __init__(self, batch_size=50, interval=10):
@@ -121,6 +122,19 @@ class BatchUploader(threading.Thread):
             
             if response.status_code in [200, 201]:
                 print(f"[Uploader] {len(batch)} observations envoyées avec succès.")
+                
+                # Traitement des images manquantes demandées par le serveur
+                try:
+                    resp_json = response.json()
+                    if "missing_images" in resp_json and isinstance(resp_json["missing_images"], list):
+                        missing_gids = resp_json["missing_images"]
+                        if missing_gids:
+                            print(f"[Uploader] Le serveur demande {len(missing_gids)} images manquantes.")
+                            for gid in missing_gids:
+                                game_data.queue_image_upload(gid)
+                except Exception as e:
+                    print(f"[Uploader] Erreur lecture réponse JSON: {e}")
+                    
             else:
                 print(f"[Uploader] Erreur envoi ({response.status_code}): {response.text}")
                 if response.status_code == 401:
