@@ -201,24 +201,45 @@ def sync_recipes(conn, i18n_texts, dry_run=False):
         quantities = recipe['quantities']
         job_id = recipe['jobId']
         
+        # Get level from item (Recipe level = Item level)
+        item_data = items_dict.get(result_ankama_id)
+        level = item_data.get('level', 1) if item_data else 1
+
         # Resolve Result Item
         result_db_id = get_or_create_item(result_ankama_id)
         if not result_db_id:
             # print(f"Skipping recipe for unknown item {result_ankama_id}")
             continue
             
+        # Check if recipe is locked (manual override)
+        cursor.execute("SELECT id, is_locked FROM recipes WHERE result_item_id = %s", (result_db_id,))
+        existing_recipe = cursor.fetchone()
+        
+        if existing_recipe and existing_recipe[1]: # is_locked is True
+            # print(f"Skipping locked recipe for item {result_db_id}")
+            continue
+
         # Insert/Update Recipe Header
         cursor.execute("""
             INSERT INTO recipes (result_item_id, job_id, level)
             VALUES (%s, %s, %s)
             ON CONFLICT (result_item_id) DO UPDATE
             SET job_id = EXCLUDED.job_id,
+                level = EXCLUDED.level,
                 updated_at = NOW()
             RETURNING id;
-        """, (result_db_id, job_id, 1))
+        """, (result_db_id, job_id, level))
         
         recipe_db_id = cursor.fetchone()[0]
         
+        # If we are updating an existing recipe that wasn't locked, we should probably clear old ingredients 
+        # to handle cases where ingredients were removed in the game update.
+        # However, the current script uses ON CONFLICT UPDATE on (recipe_id, item_id).
+        # This doesn't remove obsolete ingredients. 
+        # For a clean sync, we should delete existing ingredients for this recipe before inserting new ones.
+        if existing_recipe:
+             cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = %s", (recipe_db_id,))
+
         # Handle Ingredients
         for i, ing_ankama_id in enumerate(ingredient_ankama_ids):
             qty = quantities[i]
