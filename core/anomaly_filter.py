@@ -33,7 +33,11 @@ class AnomalyFilter:
 
         # 2. Filter absolute anomalies (too low / too high)
         # Note: min_price should be 0 or very low to accept unit prices < 1 (e.g. 100 items for 10k -> 0.1u)
-        valid_prices = [p for p in unit_prices if self.min_price <= p <= self.max_price]
+        # Also filter out MAX_INT values (2147483647) which are often noise
+        valid_prices = [
+            p for p in unit_prices 
+            if self.min_price <= p <= self.max_price and p < 2000000000
+        ]
         
         if not valid_prices:
             return [], 0

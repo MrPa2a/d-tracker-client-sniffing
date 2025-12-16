@@ -1,7 +1,7 @@
 import threading
 import time
 from scapy.all import sniff, TCP, IP, Raw
-from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, read_varint
+from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, parse_hyp_packet, parse_jeu_packet, read_varint
 from core.game_data import game_data
 from core.anomaly_filter import AnomalyFilter
 from utils.config import config_manager
@@ -20,9 +20,15 @@ class SnifferService(threading.Thread):
         )
         self.daemon = True # Kill thread when main app closes
 
+        # State for multi-packet parsing (v3 protocol)
+        self.last_gid = 0
+        self.last_prices = []
+        self.last_gid_time = 0
+        self.last_price_time = 0
+
     def run(self):
         self.running = True
-        print("Sniffer thread started.")
+        self.log("Sniffer thread started.", "INFO")
         try:
             # Load game data if not loaded
             if not game_data.loaded:
@@ -31,13 +37,70 @@ class SnifferService(threading.Thread):
             sniff(prn=self.packet_callback, store=0, stop_filter=lambda x: not self.running)
         except Exception as e:
             error_msg = f"Sniffer error: {e}"
-            print(error_msg)
+            self.log(error_msg, "ERROR")
             self.running = False
             if self.on_error:
                 self.on_error(str(e))
 
     def stop(self):
         self.running = False
+
+    def log(self, message, level="INFO"):
+        """Affiche un log si le niveau est suffisant."""
+        debug_mode = config_manager.get("debug_mode", False)
+        
+        if level == "ERROR":
+            print(f"[ERROR] {message}")
+        elif level == "INFO":
+            print(f"[INFO] {message}")
+        elif level == "DEBUG" and debug_mode:
+            print(f"[DEBUG] {message}")
+
+    def log_protobuf_structure(self, data, indent=0):
+        """Affiche la structure Protobuf d'un paquet inconnu."""
+        pos = 0
+        while pos < len(data):
+            try:
+                tag, new_pos = read_varint(data, pos)
+                field_number = tag >> 3
+                wire_type = tag & 7
+                
+                prefix = "  " * indent
+                self.log(f"{prefix}Field {field_number} (Wire {wire_type})", "DEBUG")
+                
+                if wire_type == 0: # VarInt
+                    val, new_pos = read_varint(data, new_pos)
+                    self.log(f"{prefix}  Value: {val}", "DEBUG")
+                    pos = new_pos
+                elif wire_type == 2: # Length Delimited
+                    length, new_pos = read_varint(data, new_pos)
+                    self.log(f"{prefix}  Length: {length}", "DEBUG")
+                    sub_data = data[new_pos : new_pos + length]
+                    self.log(f"{prefix}  Data (hex): {sub_data.hex()}", "DEBUG")
+                    # Recursive attempt
+                    if length > 0:
+                        self.log(f"{prefix}  -> Sub-message analysis:", "DEBUG")
+                        self.log_protobuf_structure(sub_data, indent + 1)
+                    pos = new_pos + length
+                elif wire_type == 1: # 64-bit
+                    pos = new_pos + 8
+                elif wire_type == 5: # 32-bit
+                    pos = new_pos + 4
+                else:
+                    self.log(f"{prefix}  Unknown wire type {wire_type}", "DEBUG")
+                    break
+            except Exception as e:
+                self.log(f"{'  ' * indent}Error parsing: {e}", "DEBUG")
+                break
+
+    def encode_varint(self, value):
+        """Encodes an integer as a VarInt (Protobuf style)."""
+        out = []
+        while value > 127:
+            out.append((value & 0x7F) | 0x80)
+            value >>= 7
+        out.append(value & 0x7F)
+        return bytes(out)
 
     def packet_callback(self, packet):
         if not self.running:
@@ -61,6 +124,7 @@ class SnifferService(threading.Thread):
             idx = payload.find(prefix)
             
             if idx != -1:
+                # self.log(f"Found Ankama prefix at index {idx}", "DEBUG")
                 try:
                     # Determine type suffix
                     # Heuristic: Scan for 0x12 (Tag for field 2) within reasonable distance
@@ -73,10 +137,11 @@ class SnifferService(threading.Thread):
                     
                     if type_end != -1:
                         type_suffix = payload[idx + len(prefix) : type_end]
-                        # print(f"[Sniffer] Detected type: {type_suffix}")
+                        # self.log(f"Detected type suffix: {type_suffix}", "DEBUG")
                         
                         curr = type_end + 1 # Skip Tag 0x12
                         msg_len, curr = read_varint(payload, curr)
+                        # self.log(f"Message length: {msg_len}", "DEBUG")
                         
                         msg_payload = payload[curr : curr + msg_len]
                         
@@ -88,29 +153,104 @@ class SnifferService(threading.Thread):
                         elif type_suffix == b'jbo':
                             gid, prices = parse_jbo_packet(msg_payload)
                         elif type_suffix == b'jcg':
-                            gid, prices = parse_jcg_packet(msg_payload)
+                            # Chat / Social packet - Ignore
+                            pass
+                        elif type_suffix == b'iqw':
+                            # Chat / Social packet - Ignore
+                            pass
+                        elif type_suffix == b'jbl':
+                            # Stats / Map info - Ignore
+                            pass
+                        elif type_suffix == b'jeu' or type_suffix == b'jet':
+                            g, p = parse_jeu_packet(msg_payload)
+                            if g:
+                                if g == 104:
+                                    self.log(f"Ignored GID 104 (Eliby/Noise)", "DEBUG")
+                                    return
+
+                                self.log(f"[{type_suffix.decode().upper()}] Found GID: {g}", "DEBUG")
+                                
+                                if p:
+                                    self.log(f"[{type_suffix.decode().upper()}] Found {len(p)} prices directly in packet!", "INFO")
+                                    gid = g
+                                    prices = p
+                                else:
+                                    self.last_gid = g
+                                    self.last_gid_time = time.time()
+                                    
+                                    if self.last_prices and (time.time() - self.last_price_time < 20.0):
+                                        # Check if we have multiple price lists in memory (from multiple HYP packets)
+                                        # and try to find the one that matches best (heuristic?)
+                                        # For now, we just take the most recent one.
+                                        
+                                        self.log(f"[COMBINE] Linking GID {g} with {len(self.last_prices)} prices", "INFO")
+                                        gid = g
+                                        prices = self.last_prices
+                                        
+                                        # Clear cache immediately to avoid reusing these prices for another item
+                                        self.last_prices = []
+                                        self.last_gid = 0
+                                    else:
+                                        if not self.last_prices:
+                                            self.log(f"[WARNING] GID {g} found but no prices in memory. (Cache active?)", "DEBUG")
+                                        else:
+                                            self.log(f"[WARNING] GID {g} found but prices expired ({time.time() - self.last_price_time:.1f}s ago).", "DEBUG")
+
+                        elif type_suffix == b'hyp':
+                            _, p = parse_hyp_packet(msg_payload)
+                            if p:
+                                # self.log(f"[HYP] Found {len(p)} prices", "DEBUG")
+                                self.last_prices = p
+                                self.last_price_time = time.time()
+                                
+                                if self.last_gid and (time.time() - self.last_gid_time < 20.0):
+                                    self.log(f"[COMBINE] Linking Prices with GID {self.last_gid}", "INFO")
+                                    gid = self.last_gid
+                                    prices = p
+                                    self.last_gid = 0
+                                    self.last_prices = []
                         else:
+                            # Heuristic check for GID 15715 in raw payload to find missing packets
+                            # if b'\xe3\x7a' in msg_payload:
+                            #      self.log(f"[HEURISTIC] Found GID 15715 (VarInt) in packet {type_suffix}", "DEBUG")
+
+                            # Only analyze interesting packets (likely price lists > 50 bytes)
+                            if len(msg_payload) > 50:
+                                pass
+                                # self.log(f"[CANDIDATE] Unknown suffix {type_suffix} (len={len(msg_payload)})", "INFO")
+                                # self.log("--- PROTOBUF STRUCTURE ANALYSIS ---", "INFO")
+                                # self.log_protobuf_structure(msg_payload)
+                                # self.log("-----------------------------------", "INFO")
+                            else:
+                                pass
+                                # self.log(f"Ignored small unknown packet: {type_suffix} (len={len(msg_payload)})", "DEBUG")
+
                             # Try all just in case
                             gid, prices = parse_jcg_packet(msg_payload)
                             if not gid or not prices:
                                 gid, prices = parse_jbo_packet(msg_payload)
                             if not gid or not prices:
                                 gid, prices = parse_iqb_packet(msg_payload)
+                            # if not gid or not prices:
+                            #    gid, prices = parse_iqw_packet(msg_payload)
+                            # if not gid or not prices:
+                            #    gid, prices = parse_jeu_packet(msg_payload)
                         
                         if gid and prices:
+                            self.log(f"Packet parsed: GID={gid}, Prices={len(prices)}", "DEBUG")
                             name = game_data.get_item_name(gid)
+                            
                             if not name:
+                                self.log(f"Unknown item: {gid}", "DEBUG")
                                 if self.on_unknown_item:
-                                    # Notify UI about unknown item (non-blocking)
                                     self.on_unknown_item(gid, prices)
-                                    print(f"[Sniffer] Item {gid} unknown. Delegated to UI.")
                                     return
                                 else:
-                                    print(f"[Sniffer] Item {gid} ignored (no name provided).")
                                     return
                                 
                             # Filter anomalies
                             filtered_prices, average = self.filter.filter_prices(prices)
+                            self.log(f"Filtered: {len(filtered_prices)} prices, Avg={average}", "DEBUG")
                             
                             if average > 0:
                                 category = game_data.get_item_category(gid)
@@ -127,7 +267,13 @@ class SnifferService(threading.Thread):
                                 }
                                 
                                 if self.callback:
+                                    self.log(f"Sending observation for {name}", "INFO")
                                     self.callback(observation)
+                            else:
+                                self.log(f"Average price is 0 or less, ignoring", "DEBUG")
+                        else:
+                            pass
+                            # self.log("Failed to parse GID or prices", "DEBUG")
                                     
                 except Exception as e:
-                    print(f"Error processing packet: {e}")
+                    self.log(f"Error processing packet: {e}", "ERROR")

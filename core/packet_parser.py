@@ -14,6 +14,161 @@ def read_varint(buffer, pos):
         if shift >= 64:
             raise ValueError("VarInt too large")
 
+def get_field_data(data, field_num):
+    """Helper to extract the raw bytes of a specific field (Wire 2 only)."""
+    pos = 0
+    while pos < len(data):
+        try:
+            tag, pos = read_varint(data, pos)
+            f = tag >> 3
+            w = tag & 7
+            
+            if w == 2:
+                length, pos = read_varint(data, pos)
+                if f == field_num:
+                    return data[pos : pos + length]
+                pos += length
+            elif w == 0:
+                _, pos = read_varint(data, pos)
+            elif w == 1:
+                pos += 8
+            elif w == 5:
+                pos += 4
+            else:
+                break
+        except:
+            break
+    return None
+
+def get_field_value(data, field_num):
+    """Helper to extract the integer value of a specific field (Wire 0 only)."""
+    pos = 0
+    while pos < len(data):
+        try:
+            tag, pos = read_varint(data, pos)
+            f = tag >> 3
+            w = tag & 7
+            
+            if w == 0:
+                val, pos = read_varint(data, pos)
+                if f == field_num:
+                    return val
+            elif w == 2:
+                length, pos = read_varint(data, pos)
+                pos += length
+            elif w == 1:
+                pos += 8
+            elif w == 5:
+                pos += 4
+            else:
+                break
+        except:
+            break
+    return None
+
+def get_all_field_data(data, field_num):
+    """Helper to extract ALL occurrences of a specific field (Wire 2 only)."""
+    results = []
+    pos = 0
+    while pos < len(data):
+        try:
+            tag, pos = read_varint(data, pos)
+            f = tag >> 3
+            w = tag & 7
+            
+            if w == 2:
+                length, pos = read_varint(data, pos)
+                if f == field_num:
+                    results.append(data[pos : pos + length])
+                pos += length
+            elif w == 0:
+                _, pos = read_varint(data, pos)
+            elif w == 1:
+                pos += 8
+            elif w == 5:
+                pos += 4
+            else:
+                break
+        except:
+            break
+    return results
+
+def parse_jeu_packet(payload):
+    """Décode le paquet 'jeu' ou 'jet' (Item Info + Prices)."""
+    gid = 0
+    prices = []
+    try:
+        # GID is usually at root Field 4
+        gid = get_field_value(payload, 4)
+        
+        # Prices are often in Field 1 -> Field 2 (Packed VarInts)
+        f1_data = get_field_data(payload, 1)
+        if f1_data:
+            # Prices in Field 1 -> Field 2
+            f2_data = get_field_data(f1_data, 2)
+            if f2_data:
+                pos = 0
+                while pos < len(f2_data):
+                    try:
+                        price, pos = read_varint(f2_data, pos)
+                        if price > 0:
+                            prices.append(price)
+                    except:
+                        break
+            
+            # Sometimes GID is also in Field 1 -> Field 5
+            if not gid:
+                gid = get_field_value(f1_data, 5)
+
+    except Exception as e:
+        # print(f"[JEU/JET DEBUG] Error: {e}")
+        pass
+    
+    if gid:
+        # print(f"[JEU/JET DEBUG] Found GID: {gid}, Prices: {len(prices)}")
+        pass
+        
+    return gid, prices
+
+def parse_hyp_packet(payload):
+    """Décode le paquet 'hyp' (Liste de prix HDV)."""
+    prices = []
+    # gid = 0 # Field 2 is NOT GID (it's 63 for everyone apparently)
+    try:
+        # Field 2 is repeated (Item in list)
+        items_data = get_all_field_data(payload, 2)
+        for item_data in items_data:
+            # Inside Field 2: Field 4 contains details
+            details_data = get_field_data(item_data, 4)
+            if details_data:
+                # Inside Field 4: 
+                # Field 5 is Total Price
+                # Field 3 is Quantity (default to 1 if missing)
+                price = get_field_value(details_data, 5)
+                quantity = get_field_value(details_data, 3)
+                
+                if quantity is None or quantity == 0:
+                    quantity = 1
+                
+                if price is not None:
+                    # On stocke le prix unitaire pour l'analyse
+                    unit_price = int(price / quantity)
+                    prices.append(unit_price)
+                    
+                    # Debug spécifique pour Aile de Vortex (recherche des valeurs connues)
+                    # if price in [474998, 4897998]:
+                    #    print(f"[HYP DEBUG] MATCH FOUND! Price: {price}, Qty: {quantity}")
+
+    except Exception as e:
+        # print(f"[HYP DEBUG] Error: {e}")
+        pass
+    
+    if prices:
+        # print(f"[HYP DEBUG] Found {len(prices)} prices. Top 5: {prices[:5]}")
+        pass
+    
+    return 0, prices
+
 def parse_iqb_packet(payload):
     """Décode le paquet de prix (iqb)."""
     try:
