@@ -3,6 +3,7 @@ import threading
 import sys
 import os
 import time
+import webbrowser
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from ui.overlay import OverlayWindow
@@ -10,6 +11,8 @@ from core.sniffer_service import SnifferService
 from core.game_data import game_data
 from network.uploader import BatchUploader
 from utils.config import config_manager, DOFUS_SERVERS
+from core.updater import UpdateManager
+from core.constants import APP_NAME, VERSION, UPDATE_URL
 
 class ConsoleRedirector:
     def __init__(self, text_widget):
@@ -117,7 +120,7 @@ class MainWindow(ctk.CTk):
         #     ctk.set_default_color_theme(theme_path)
         ctk.set_default_color_theme("blue")
 
-        self.title("Dofus Tracker Client V3")
+        self.title(f"{APP_NAME} v{VERSION}")
         self.geometry("600x600")
         
         # Set window icon
@@ -145,6 +148,13 @@ class MainWindow(ctk.CTk):
         self.uploader = BatchUploader()
         self.overlay = None
         self.session_count = 0
+        
+        # Update Manager
+        # On utilise l'URL définie dans constants.py
+        self.updater = UpdateManager(api_url=UPDATE_URL)
+        
+        # Lancer la vérification des mises à jour après 1 seconde
+        self.after(1000, self.check_updates)
         
         # Queue for unknown items
         self.unknown_items_queue = []
@@ -276,7 +286,8 @@ class MainWindow(ctk.CTk):
         if should_show:
             self.show_overlay()
             if self.overlay:
-                self.overlay.set_running(True)
+                is_running = (self.sniffer is not None and self.sniffer.running)
+                self.overlay.set_running(is_running)
         else:
             self.hide_overlay()
 
@@ -457,6 +468,62 @@ class MainWindow(ctk.CTk):
     def force_close(self):
         self.closing_dialog.destroy()
         self.destroy()
+
+    def check_updates(self):
+        """Vérifie les mises à jour en arrière-plan"""
+        def _check():
+            try:
+                available, remote_version = self.updater.check_for_updates()
+                if available:
+                    self.after(0, lambda: self.show_update_dialog(remote_version))
+            except Exception as e:
+                print(f"Erreur update: {e}")
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def show_update_dialog(self, remote_version):
+        """Affiche une popup proposant la mise à jour"""
+        msg = f"Une nouvelle version ({remote_version}) est disponible.\nVoulez-vous la télécharger et l'installer maintenant ?"
+        if messagebox.askyesno("Mise à jour disponible", msg):
+            self.start_update_process()
+
+    def start_update_process(self):
+        """Lance le téléchargement avec une barre de progression"""
+        # Créer une fenêtre de progression
+        progress_window = ctk.CTkToplevel(self)
+        progress_window.title("Mise à jour")
+        progress_window.geometry("300x150")
+        progress_window.resizable(False, False)
+        progress_window.transient(self)
+        progress_window.grab_set()
+        
+        # Centrer
+        try:
+            x = self.winfo_x() + (self.winfo_width() // 2) - 150
+            y = self.winfo_y() + (self.winfo_height() // 2) - 75
+            progress_window.geometry(f"+{x}+{y}")
+        except:
+            pass
+
+        lbl = ctk.CTkLabel(progress_window, text="Téléchargement en cours...")
+        lbl.pack(pady=20)
+
+        progress_bar = ctk.CTkProgressBar(progress_window)
+        progress_bar.pack(pady=10, padx=20, fill="x")
+        progress_bar.set(0)
+
+        def _download():
+            def update_progress(p):
+                self.after(0, lambda: progress_bar.set(p))
+
+            success = self.updater.download_and_install(progress_callback=update_progress)
+            
+            if not success:
+                self.after(0, lambda: messagebox.showerror("Erreur", "Échec du téléchargement de la mise à jour."))
+                self.after(0, progress_window.destroy)
+
+        threading.Thread(target=_download, daemon=True).start()
+
 
     def destroy(self):
         # Clean shutdown

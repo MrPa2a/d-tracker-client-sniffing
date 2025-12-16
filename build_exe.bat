@@ -15,8 +15,11 @@ python -m PyInstaller --noconfirm DofusTracker.spec
 echo Copying Npcap installer...
 if exist redist\npcap-installer.exe copy redist\npcap-installer.exe dist\DofusTracker\
 
-echo Copying config.json...
-if exist config.json copy config.json dist\DofusTracker\
+echo Copying config.example.json...
+if exist config.example.json copy config.example.json dist\DofusTracker\
+
+REM Ne PAS copier config.json pour eviter d'ecraser la config utilisateur lors des updates
+REM if exist config.json copy config.json dist\DofusTracker\
 
 echo Build complete. Executable is in dist/DofusTracker/DofusTracker.exe
 
@@ -24,14 +27,7 @@ echo === Creating ZIP archive ===
 set "APP_NAME=DofusTracker"
 set "DIST_DIR=dist\%APP_NAME%"
 
-REM Parse date (assuming DD/MM/YYYY format common in FR)
-for /f "tokens=1-3 delims=/" %%a in ("%DATE%") do (
-    set "JJ=%%a"
-    set "MM=%%b"
-    set "AAAA=%%c"
-)
-
-set "ZIP_NAME=%APP_NAME%-v3-%AAAA%-%MM%-%JJ%.zip"
+set "ZIP_NAME=%APP_NAME%.zip"
 
 echo Compressing to dist\%ZIP_NAME%...
 powershell -NoLogo -NoProfile -Command ^

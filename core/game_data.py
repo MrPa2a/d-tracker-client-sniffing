@@ -112,7 +112,7 @@ class GameData:
             url = f"{base_url}/known_items"
             
             print(f"Récupération des items connus depuis {url}...")
-            response = requests.get(url, timeout=2)
+            response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 remote_items = response.json()
                 for item in remote_items:
