@@ -197,18 +197,10 @@ class SnifferService(threading.Thread):
                                             self.log(f"[WARNING] GID {g} found but prices expired ({time.time() - self.last_price_time:.1f}s ago).", "DEBUG")
 
                         elif type_suffix == b'hyp':
-                            _, p = parse_hyp_packet(msg_payload)
-                            if p:
-                                # self.log(f"[HYP] Found {len(p)} prices", "DEBUG")
-                                self.last_prices = p
-                                self.last_price_time = time.time()
-                                
-                                if self.last_gid and (time.time() - self.last_gid_time < 20.0):
-                                    self.log(f"[COMBINE] Linking Prices with GID {self.last_gid}", "INFO")
-                                    gid = self.last_gid
-                                    prices = p
-                                    self.last_gid = 0
-                                    self.last_prices = []
+                            # HYP packets contain unreliable prices (often averages or history, not current HDV)
+                            # We ignore them to avoid polluting the data with incorrect values.
+                            # _, p = parse_hyp_packet(msg_payload)
+                            pass
                         else:
                             # Heuristic check for GID 15715 in raw payload to find missing packets
                             # if b'\xe3\x7a' in msg_payload:
