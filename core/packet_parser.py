@@ -101,9 +101,14 @@ def parse_jeu_packet(payload):
         # GID is usually at root Field 4
         gid = get_field_value(payload, 4)
         
-        # Prices are often in Field 1 -> Field 2 (Packed VarInts)
-        f1_data = get_field_data(payload, 1)
-        if f1_data:
+        # Prices are in Field 1.
+        # For Equipment: Field 1 is repeated (one per offer), and Field 2 inside contains the price.
+        # For Resources: Field 1 is usually single, and Field 2 inside contains ALL prices (Packed VarInts).
+        # Solution: Iterate over ALL Field 1 occurrences.
+        
+        all_f1_data = get_all_field_data(payload, 1)
+        
+        for f1_data in all_f1_data:
             # Prices in Field 1 -> Field 2
             f2_data = get_field_data(f1_data, 2)
             if f2_data:
@@ -116,7 +121,7 @@ def parse_jeu_packet(payload):
                     except:
                         break
             
-            # Sometimes GID is also in Field 1 -> Field 5
+            # Sometimes GID is also in Field 1 -> Field 5 (especially for Equipment)
             if not gid:
                 gid = get_field_value(f1_data, 5)
 

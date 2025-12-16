@@ -1,5 +1,6 @@
 import threading
 import time
+import json
 from scapy.all import sniff, TCP, IP, Raw
 from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, parse_hyp_packet, parse_jeu_packet, read_varint
 from core.game_data import game_data
@@ -93,6 +94,60 @@ class SnifferService(threading.Thread):
                 self.log(f"{'  ' * indent}Error parsing: {e}", "DEBUG")
                 break
 
+    def dump_packet_structure(self, gid, data):
+        """Dumps the full protobuf structure to a file for analysis."""
+        filename = f"packet_structure_{gid}.txt"
+        self.log(f"Dumping packet structure to {filename}...", "INFO")
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"Packet Structure for GID {gid}\n")
+            f.write("================================\n")
+            self._recursive_structure_dump(data, 0, f)
+
+    def _recursive_structure_dump(self, data, indent, f):
+        pos = 0
+        while pos < len(data):
+            try:
+                tag, new_pos = read_varint(data, pos)
+                field_number = tag >> 3
+                wire_type = tag & 7
+                
+                prefix = "  " * indent
+                f.write(f"{prefix}Field {field_number} (Wire {wire_type})")
+                
+                if wire_type == 0: # VarInt
+                    val, new_pos = read_varint(data, new_pos)
+                    f.write(f" : Value = {val}\n")
+                    pos = new_pos
+                elif wire_type == 2: # Length Delimited
+                    length, new_pos = read_varint(data, new_pos)
+                    f.write(f" : Length = {length}\n")
+                    sub_data = data[new_pos : new_pos + length]
+                    
+                    # Heuristic: Try to recurse if it looks like a message
+                    # We assume it's a sub-message if it's long enough
+                    if length > 0:
+                        f.write(f"{prefix}  [Hex]: {sub_data.hex()[:30]}...\n")
+                        # Tentative de parsing récursif
+                        try:
+                            f.write(f"{prefix}  -> Decoding sub-message:\n")
+                            self._recursive_structure_dump(sub_data, indent + 1, f)
+                        except:
+                            pass
+                    
+                    pos = new_pos + length
+                elif wire_type == 1: # 64-bit
+                    f.write(f" : 64-bit value\n")
+                    pos = new_pos + 8
+                elif wire_type == 5: # 32-bit
+                    f.write(f" : 32-bit value\n")
+                    pos = new_pos + 4
+                else:
+                    f.write(f" : Unknown wire type {wire_type}\n")
+                    break
+            except Exception as e:
+                f.write(f"\n{prefix}  End of stream or error: {e}\n")
+                break
+
     def encode_varint(self, value):
         """Encodes an integer as a VarInt (Protobuf style)."""
         out = []
@@ -174,6 +229,10 @@ class SnifferService(threading.Thread):
                                     self.log(f"[{type_suffix.decode().upper()}] Found {len(p)} prices directly in packet!", "INFO")
                                     gid = g
                                     prices = p
+                                    
+                                    # DEBUG: Dump structure for Dofus Ocre or specific items
+                                    # if gid == 7754 or gid == 6980: # Ocre or Vulbis
+                                    #    self.dump_packet_structure(gid, msg_payload)
                                 else:
                                     self.last_gid = g
                                     self.last_gid_time = time.time()
@@ -240,15 +299,25 @@ class SnifferService(threading.Thread):
                                 else:
                                     return
                                 
-                            # Filter anomalies
-                            filtered_prices, average = self.filter.filter_prices(prices)
-                            self.log(f"Filtered: {len(filtered_prices)} prices, Avg={average}", "DEBUG")
+                            # Determine processing strategy based on item type
+                            is_equipment = game_data.is_equipment(gid)
+                            category = game_data.get_item_category(gid)
+                            if not category:
+                                category = "Catégorie Inconnue"
+
+                            if is_equipment:
+                                # For equipment, we only take the minimum price (cheapest)
+                                # because each item is unique (stats vary)
+                                min_price = min(prices)
+                                self.log(f"Item {name} is Equipment ({category}). Using min price: {min_price}", "DEBUG")
+                                filtered_prices = [min_price]
+                                average = min_price
+                            else:
+                                # For resources, we filter anomalies and calculate average
+                                filtered_prices, average = self.filter.filter_prices(prices)
+                                self.log(f"Filtered: {len(filtered_prices)} prices, Avg={average}", "DEBUG")
                             
                             if average > 0:
-                                category = game_data.get_item_category(gid)
-                                if not category:
-                                    category = "Catégorie Inconnue"
-
                                 observation = {
                                     "gid": gid,
                                     "name": name,
@@ -257,6 +326,13 @@ class SnifferService(threading.Thread):
                                     "average_price": average,
                                     "timestamp": int(time.time() * 1000)
                                 }
+
+                                # DEBUG: Dump raw observation to file
+                                try:
+                                    with open("observations.json", "a", encoding="utf-8") as f:
+                                        f.write(json.dumps(observation, ensure_ascii=False) + "\n")
+                                except Exception as e:
+                                    self.log(f"Error dumping observation: {e}", "ERROR")
                                 
                                 if self.callback:
                                     self.log(f"Sending observation for {name}", "INFO")

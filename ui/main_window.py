@@ -341,13 +341,18 @@ class MainWindow(ctk.CTk):
             try:
                 # Re-use filter logic from sniffer (accessing via self.sniffer if available)
                 if self.sniffer:
-                    filtered_prices, average = self.sniffer.filter.filter_prices(prices)
+                    # Determine processing strategy based on item type
+                    is_equipment = game_data.is_equipment(gid)
+                    category = game_data.get_item_category(gid)
+                    if not category:
+                        category = "Catégorie Inconnue"
+
+                    if is_equipment:
+                        average = min(prices)
+                    else:
+                        filtered_prices, average = self.sniffer.filter.filter_prices(prices)
                     
                     if average > 0:
-                        category = game_data.get_item_category(gid)
-                        if not category:
-                            category = "Catégorie Inconnue"
-
                         observation = {
                             "gid": gid,
                             "name": clean_name,

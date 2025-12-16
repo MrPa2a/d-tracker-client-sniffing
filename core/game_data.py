@@ -9,6 +9,12 @@ from core.asset_worker import AssetWorker
 from utils.paths import get_resource_path
 from utils.config import config_manager
 
+EQUIPMENT_CATEGORIES = {
+    "Amulette", "Arc", "Baguette", "Bâton", "Dague", "Epée", "Marteau", "Pelle", "Hache", "Faux", "Pioche", 
+    "Anneau", "Ceinture", "Bottes", "Chapeau", "Cape", "Sac à dos", "Bouclier", "Dofus", "Trophée", 
+    "Monture", "Familier", "Montilier", "Idole", "Compagnon"
+}
+
 class GameData:
     def __init__(self):
         self.items = {}
@@ -16,6 +22,7 @@ class GameData:
         self.user_items = {} # Mapping GID -> Name défini par l'utilisateur
         self.known_items = {} # Mapping GID -> Name récupéré du serveur (communauté)
         self.known_items_images = {} # Mapping GID -> bool (has_image)
+        self.known_categories = {} # Mapping GID -> Category
         self.loaded = False
         self.d2o_reader = None
         self.item_types_reader = None
@@ -119,8 +126,11 @@ class GameData:
                     gid = str(item["gid"])
                     name = item["name"]
                     has_image = item.get("has_image", False)
+                    category = item.get("category")
                     self.known_items[gid] = name
                     self.known_items_images[gid] = has_image
+                    if category:
+                        self.known_categories[gid] = category
             else:
                 print(f"Erreur récupération items: {response.status_code}")
         except Exception as e:
@@ -157,6 +167,9 @@ class GameData:
                 url = f"{base_url}/known_items"
                 payload = {"gid": int(gid), "name": name, "category": category}
                 requests.post(url, json=payload, timeout=10)
+                
+                # Update local cache
+                self.known_categories[str(gid)] = category
         except Exception as e:
             print(f"Erreur envoi item serveur: {e}")
 
@@ -164,6 +177,11 @@ class GameData:
         if not self.loaded:
             self.load()
             
+        # 1. Check known categories (from backend)
+        if str(gid) in self.known_categories:
+            return self.known_categories[str(gid)]
+
+        # 2. Check D2O
         if self.d2o_reader and self.item_types_reader and self.d2i_reader:
             try:
                 # Get Item details (including TypeID)
@@ -181,6 +199,13 @@ class GameData:
                 print(f"Erreur lecture catégorie pour {gid}: {e}")
         
         return None
+
+    def is_equipment(self, gid):
+        """Détermine si un item est un équipement (dont le prix varie selon les stats)."""
+        category = self.get_item_category(gid)
+        if category and category in EQUIPMENT_CATEGORIES:
+            return True
+        return False
 
     def get_item_icon_data(self, gid):
         """Returns the binary data of the item's icon (PNG)."""

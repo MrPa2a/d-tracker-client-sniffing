@@ -21,23 +21,41 @@ C'est le paquet le plus important pour le tracking des prix. Contrairement aux v
 *   **Suffixe** : `jet` (parfois `jeu`).
 *   **Contenu** :
     *   **GID (Item ID)** : Généralement situé dans le **Champ 4** (Wire Type 0 - VarInt).
-    *   **Prix HDV** : Situés dans une structure imbriquée.
-        *   **Chemin** : `Field 1 (Wire 2)` -> `Field 2 (Wire 2)` -> `Packed VarInts`.
-        *   Les prix sont stockés sous forme d'une liste d'entiers compressés (Packed VarInts).
+    *   **Prix HDV** : La structure diffère selon le type d'item (Ressource vs Équipement).
 
 **Structure observée (Pseudo-Protobuf) :**
+
+**Cas A : Ressources (Items empilables)**
+Pour les ressources, tous les prix (lots de 1, 10, 100) sont souvent regroupés dans une seule occurrence du `Field 1`.
 ```protobuf
-message JetPacket {
-    optional SubMessage field1 = 1; // Contient les prix
-    optional int32 gid = 4;         // ID de l'objet (ex: 15715 pour Aile de Vortex)
-    // ... autres champs
+message JetPacketResource {
+    optional SubMessage field1 = 1; // Une seule occurrence
+    optional int32 gid = 4;
 }
 
 message SubMessage {
-    repeated int32 prices = 2 [packed=true]; // Liste des prix unitaires
-    optional int32 gid_backup = 5;           // Parfois le GID est ici aussi
+    repeated int32 prices = 2 [packed=true]; // Liste de TOUS les prix compressés
 }
 ```
+
+**Cas B : Équipements (Items uniques)**
+Pour les équipements (Dofus, Coiffes, etc.), chaque item en vente est unique (stats différentes). Le serveur envoie donc une liste d'objets, ce qui se traduit par **plusieurs occurrences du `Field 1`** (Repeated Field).
+```protobuf
+message JetPacketEquipment {
+    repeated SubMessage field1 = 1; // Répété N fois (une fois par offre)
+    optional int32 gid = 4;
+}
+
+message SubMessage {
+    optional int32 price = 2; // Le prix de CETTE offre spécifique
+    // D'autres champs ici contiennent probablement les stats/effets
+}
+```
+
+**Implémentation Critique :**
+Le parser doit itérer sur **toutes** les occurrences de `Field 1` (`get_all_field_data`) et extraire le `Field 2` de chacune pour reconstituer la liste complète des prix.
+*   Pour les **Ressources** : On calcule une moyenne pondérée.
+*   Pour les **Équipements** : On ne retient que le `min()` de la liste (le prix le plus bas).
 
 #### 2. `hyp` - Historique / Liste (Obsolète/Unreliable)
 Nous avons observé des paquets `hyp` contenant des listes de prix, mais ils semblaient souvent désynchronisés ou contenir des moyennes incohérentes par rapport à l'affichage en jeu.
