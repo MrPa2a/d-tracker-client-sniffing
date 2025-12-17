@@ -10,7 +10,7 @@ from utils.paths import get_resource_path
 from utils.config import config_manager
 
 EQUIPMENT_CATEGORIES = {
-    "Amulette", "Arc", "Baguette", "Bâton", "Dague", "Epée", "Épée", "Marteau", "Pelle", "Hache", "Faux", "Pioche", 
+    "Amulette", "Arc", "Baguette", "Bâton", "Dague", "Epée", "Épée", "Marteau", "Pelle", "Hache", "Faux", "Pioche", "Lance",
     "Anneau", "Ceinture", "Bottes", "Chapeau", "Cape", "Sac à dos", "Bouclier", "Dofus", "Trophée", "Prysmaradite",
     "Monture", "Familier", "Montilier", "Idole", "Compagnon"
 }

@@ -26,6 +26,10 @@ class SnifferService(threading.Thread):
         self.last_prices = []
         self.last_gid_time = 0
         self.last_price_time = 0
+        
+        # Buffer for TCP reassembly (Simple)
+        self.buffer = b""
+        self.buffer_time = 0
 
     def run(self):
         self.running = True
@@ -174,9 +178,36 @@ class SnifferService(threading.Thread):
                 with open("packet_dump.bin", "ab") as f:
                     f.write(payload)
             
-            # Search for 'type.ankama.com/'
+            # --- TCP Reassembly Logic ---
             prefix = b'type.ankama.com/'
             idx = payload.find(prefix)
+            
+            if idx != -1:
+                # New message start found
+                self.buffer = payload
+                self.buffer_time = time.time()
+                # self.log("New message start detected, buffering...", "DEBUG")
+            else:
+                # No header found
+                if self.buffer:
+                    # Check timeout (5s)
+                    if time.time() - self.buffer_time > 5:
+                        self.buffer = b""
+                        self.log("Buffer timeout, clearing.", "DEBUG")
+                        return
+                        
+                    # Append to buffer
+                    self.buffer += payload
+                    # self.log(f"Appended {len(payload)} bytes to buffer (Total: {len(self.buffer)})", "DEBUG")
+                else:
+                    # No buffer and no header -> Ignore
+                    return
+
+            # Work with the buffer
+            full_data = self.buffer
+            
+            # Re-find prefix in full_data (it must be there if buffer is set)
+            idx = full_data.find(prefix)
             
             if idx != -1:
                 # self.log(f"Found Ankama prefix at index {idx}", "DEBUG")
@@ -186,19 +217,30 @@ class SnifferService(threading.Thread):
                     type_end = -1
                     for i in range(10):
                         check_pos = idx + len(prefix) + i
-                        if check_pos < len(payload) and payload[check_pos] == 0x12:
+                        if check_pos < len(full_data) and full_data[check_pos] == 0x12:
                             type_end = check_pos
                             break
                     
                     if type_end != -1:
-                        type_suffix = payload[idx + len(prefix) : type_end]
+                        type_suffix = full_data[idx + len(prefix) : type_end]
                         # self.log(f"Detected type suffix: {type_suffix}", "DEBUG")
                         
                         curr = type_end + 1 # Skip Tag 0x12
-                        msg_len, curr = read_varint(payload, curr)
+                        msg_len, curr = read_varint(full_data, curr)
                         # self.log(f"Message length: {msg_len}", "DEBUG")
                         
-                        msg_payload = payload[curr : curr + msg_len]
+                        # Check if we have the full message
+                        if curr + msg_len > len(full_data):
+                            # self.log(f"Waiting for more data... ({len(full_data)}/{curr + msg_len})", "DEBUG")
+                            return # Wait for next packet
+                        
+                        # We have the full message!
+                        msg_payload = full_data[curr : curr + msg_len]
+                        
+                        # Clear buffer (we consumed the message)
+                        # Note: If there are multiple messages in buffer, we lose them here. 
+                        # But usually it's one large message split.
+                        self.buffer = b""
                         
                         gid = 0
                         prices = []
@@ -208,8 +250,8 @@ class SnifferService(threading.Thread):
                         elif type_suffix == b'jbo':
                             gid, prices = parse_jbo_packet(msg_payload)
                         elif type_suffix == b'jcg':
-                            # Chat / Social packet - Ignore
-                            pass
+                            # Previously ignored, but seems to be the new price packet (v2)
+                            gid, prices = parse_jcg_packet(msg_payload)
                         elif type_suffix == b'iqw':
                             # Chat / Social packet - Ignore
                             pass
@@ -289,6 +331,17 @@ class SnifferService(threading.Thread):
                         
                         if gid and prices:
                             self.log(f"Packet parsed: GID={gid}, Prices={len(prices)}", "DEBUG")
+                            
+                            # DEBUG: Dump packet for analysis
+                            if config_manager.get("debug_mode"):
+                                try:
+                                    suffix_str = type_suffix.decode('utf-8', errors='ignore')
+                                    filename = f"debug_packets/{gid}_{suffix_str}_{int(time.time())}.bin"
+                                    with open(filename, "wb") as f:
+                                        f.write(msg_payload)
+                                except Exception as e:
+                                    self.log(f"Error dumping packet: {e}", "ERROR")
+
                             name = game_data.get_item_name(gid)
                             
                             if not name:
