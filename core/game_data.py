@@ -198,6 +198,12 @@ class GameData:
             except Exception as e:
                 print(f"Erreur lecture catégorie pour {gid}: {e}")
         
+        # 3. Fallback DofusDB
+        category = self.fetch_category_from_dofusdb(gid)
+        if category:
+            self.known_categories[str(gid)] = category
+            return category
+
         return None
 
     def is_equipment(self, gid):
@@ -313,6 +319,24 @@ class GameData:
                         return item_data["name"]["fr"]
         except Exception as e:
             print(f"Erreur récupération nom DofusDB pour {gid}: {e}")
+            
+        return None
+
+    def fetch_category_from_dofusdb(self, gid):
+        """Fetches item category from DofusDB API."""
+        try:
+            # print(f"Fetching category for {gid} from DofusDB...")
+            api_url = f"https://api.dofusdb.fr/items?id={gid}"
+            response = requests.get(api_url, timeout=2)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "data" in data and len(data["data"]) > 0:
+                    item_data = data["data"][0]
+                    if "type" in item_data and "name" in item_data["type"] and "fr" in item_data["type"]["name"]:
+                        return item_data["type"]["name"]["fr"]
+        except Exception as e:
+            print(f"Erreur récupération catégorie DofusDB pour {gid}: {e}")
             
         return None
 
