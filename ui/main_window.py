@@ -209,6 +209,11 @@ class MainWindow(ctk.CTk):
         self.debug_mode_check = ctk.CTkCheckBox(self.config_frame, text="Mode Debug (Logs)", variable=self.debug_mode_var, command=self.on_debug_mode_change)
         self.debug_mode_check.grid(row=3, column=1, padx=10, pady=5, sticky="w")
         
+        # Disable Upload
+        self.disable_upload_var = ctk.BooleanVar(value=config_manager.get("disable_upload", False))
+        self.disable_upload_check = ctk.CTkCheckBox(self.config_frame, text="Désactiver l'envoi (Debug)", variable=self.disable_upload_var, command=self.on_disable_upload_change)
+        self.disable_upload_check.grid(row=4, column=1, padx=10, pady=5, sticky="w")
+        
         # API Token (Hidden/Hardcoded)
         # self.token_label = ctk.CTkLabel(self.config_frame, text="API Token:")
         # self.token_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
@@ -280,6 +285,11 @@ class MainWindow(ctk.CTk):
         val = self.debug_mode_var.get()
         config_manager.set("debug_mode", val)
         print(f"Mode debug changé pour : {val}")
+
+    def on_disable_upload_change(self):
+        val = self.disable_upload_var.get()
+        config_manager.set("disable_upload", val)
+        print(f"Désactivation upload changée pour : {val}")
 
     def _update_overlay_visibility(self):
         mode = config_manager.get("overlay_mode", "Auto")
@@ -417,12 +427,15 @@ class MainWindow(ctk.CTk):
         # This runs in the sniffer thread, so we need to schedule UI updates
         self.after(0, lambda: self._update_ui_with_obs(obs))
         
-        # Add to upload queue
-        self.uploader.add_observation(obs)
+        # Add to upload queue if not disabled
+        if not config_manager.get("disable_upload", False):
+            self.uploader.add_observation(obs)
+        else:
+            print(f"[DEBUG] Upload désactivé, observation ignorée : {obs['name']} (GID: {obs['gid']})")
 
     def _update_ui_with_obs(self, obs):
         category = obs.get('category', 'Inconnue')
-        print(f"[OBS] {obs['name']} ({category}) - Moy: {obs['average_price']} k")
+        print(f"[OBS] {obs['name']} (GID: {obs['gid']}) ({category}) - Moy: {obs['average_price']} k")
         
         # Update Session Info
         self.session_count += 1

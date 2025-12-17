@@ -38,7 +38,8 @@ DEFAULT_CONFIG = {
     "max_price_threshold": 1000000000,
     "outlier_threshold_percent": 500, # 500% deviation
     "overlay_mode": "Auto",
-    "debug_mode": False
+    "debug_mode": False,
+    "disable_upload": False
 }
 
 class ConfigManager:
