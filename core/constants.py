@@ -1,4 +1,4 @@
-VERSION = "3.1.1"
+VERSION = "3.1.2"
 APP_NAME = "Dofus Tracker"
 GITHUB_REPO = "MrPa2a/dofus-tracker-client-v3"
 # URL pointant vers la version "raw" du fichier, SANS le hash du commit pour toujours avoir la dernière version
