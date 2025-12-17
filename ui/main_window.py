@@ -204,6 +204,11 @@ class MainWindow(ctk.CTk):
         self.strict_popup_check = ctk.CTkCheckBox(self.config_frame, text="Popup Strict (Premier plan)", variable=self.strict_popup_var, command=self.on_strict_popup_change)
         self.strict_popup_check.grid(row=2, column=1, padx=10, pady=5, sticky="w")
         
+        # Debug Mode
+        self.debug_mode_var = ctk.BooleanVar(value=config_manager.get("debug_mode", False))
+        self.debug_mode_check = ctk.CTkCheckBox(self.config_frame, text="Mode Debug (Logs)", variable=self.debug_mode_var, command=self.on_debug_mode_change)
+        self.debug_mode_check.grid(row=3, column=1, padx=10, pady=5, sticky="w")
+        
         # API Token (Hidden/Hardcoded)
         # self.token_label = ctk.CTkLabel(self.config_frame, text="API Token:")
         # self.token_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
@@ -270,6 +275,11 @@ class MainWindow(ctk.CTk):
         val = self.strict_popup_var.get()
         config_manager.set("strict_popup", val)
         print(f"Mode popup strict changé pour : {val}")
+
+    def on_debug_mode_change(self):
+        val = self.debug_mode_var.get()
+        config_manager.set("debug_mode", val)
+        print(f"Mode debug changé pour : {val}")
 
     def _update_overlay_visibility(self):
         mode = config_manager.get("overlay_mode", "Auto")

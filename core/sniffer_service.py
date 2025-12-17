@@ -328,11 +328,12 @@ class SnifferService(threading.Thread):
                                 }
 
                                 # DEBUG: Dump raw observation to file
-                                try:
-                                    with open("observations.json", "a", encoding="utf-8") as f:
-                                        f.write(json.dumps(observation, ensure_ascii=False) + "\n")
-                                except Exception as e:
-                                    self.log(f"Error dumping observation: {e}", "ERROR")
+                                if config_manager.get("debug_mode"):
+                                    try:
+                                        with open("observations.json", "a", encoding="utf-8") as f:
+                                            f.write(json.dumps(observation, ensure_ascii=False) + "\n")
+                                    except Exception as e:
+                                        self.log(f"Error dumping observation: {e}", "ERROR")
                                 
                                 if self.callback:
                                     self.log(f"Sending observation for {name}", "INFO")
