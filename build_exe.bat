@@ -38,4 +38,7 @@ if errorlevel 1 (
 ) else (
     echo ZIP archive created successfully: dist\%ZIP_NAME%
 )
+
+if "%1"=="--no-pause" goto end
 pause
+:end
