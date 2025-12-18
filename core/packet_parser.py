@@ -116,8 +116,8 @@ def parse_jeu_packet(payload):
                 while pos < len(f2_data):
                     try:
                         price, pos = read_varint(f2_data, pos)
-                        if price > 0:
-                            prices.append(price)
+                        # Keep zeros to maintain positional info (x1, x10, x100, x1000)
+                        prices.append(price)
                     except:
                         break
             
@@ -339,6 +339,7 @@ def parse_jcg_packet(payload):
                         while sub_pos < packed_end:
                             price, sub_pos = read_varint(data, sub_pos)
                             prices.append(price)
+                            
                     else:
                         # Skip unknown fields inside
                         if sub_wire == 0:
