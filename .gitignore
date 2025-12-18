@@ -8,3 +8,5 @@ build/
 config.json
 
 observations.json
+
+*.bin

@@ -361,10 +361,16 @@ class SnifferService(threading.Thread):
                             if is_equipment:
                                 # For equipment, we only take the minimum price (cheapest)
                                 # because each item is unique (stats vary)
-                                min_price = min(prices)
-                                self.log(f"Item {name} is Equipment ({category}). Using min price: {min_price}", "DEBUG")
-                                filtered_prices = [min_price]
-                                average = min_price
+                                # Filter out zeros (artifacts/placeholders)
+                                valid_prices = [p for p in prices if p > 0]
+                                if valid_prices:
+                                    min_price = min(valid_prices)
+                                    self.log(f"Item {name} is Equipment ({category}). Using min price: {min_price}", "DEBUG")
+                                    filtered_prices = [min_price]
+                                    average = min_price
+                                else:
+                                    self.log(f"Item {name} is Equipment ({category}) but no valid prices found.", "DEBUG")
+                                    average = 0
                             else:
                                 # For resources, we filter anomalies and calculate average
                                 filtered_prices, average = self.filter.filter_prices(prices)
