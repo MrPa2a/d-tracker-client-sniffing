@@ -268,7 +268,7 @@ class SnifferService(threading.Thread):
                                 self.log(f"[{type_suffix.decode().upper()}] Found GID: {g}", "DEBUG")
                                 
                                 if p:
-                                    self.log(f"[{type_suffix.decode().upper()}] Found {len(p)} prices directly in packet!", "INFO")
+                                    self.log(f"[{type_suffix.decode().upper()}] Found {len(p)} prices directly in packet!", "DEBUG")
                                     gid = g
                                     prices = p
                                     
