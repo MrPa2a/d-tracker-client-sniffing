@@ -3,6 +3,7 @@ import sys
 import psycopg2
 import requests
 import time
+import re
 import json
 from dotenv import load_dotenv
 
@@ -27,9 +28,98 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         sys.exit(1)
 
+def fetch_effect_definitions():
+    print("Fetching effect definitions from DofusDB...")
+    base_url = "https://api.dofusdb.fr/effects"
+    limit = 50
+    skip = 0
+    effects_map = {}
+    
+    while True:
+        url = f"{base_url}?$limit={limit}&$skip={skip}"
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                items = data.get('data', [])
+                if not items:
+                    break
+                
+                for effect in items:
+                    desc = effect.get('description', {}).get('fr', '')
+                    if desc:
+                        effects_map[effect['id']] = desc
+                
+                skip += limit
+            else:
+                print(f"Failed to fetch effects: {response.status_code}")
+                break
+        except Exception as e:
+            print(f"Error fetching effects: {e}")
+            break
+            
+    # Manual overrides for missing descriptions (Unity/New effects)
+    manual_overrides = {
+        2800: "#1% Dommages mêlée",
+        2801: "#1% Dommages mêlée",
+        2802: "#1% Résistance mêlée",
+        2803: "#1% Résistance mêlée",
+        2804: "#1% Dommages distance",
+        2805: "#1% Dommages distance",
+        2806: "#1% Résistance distance",
+        2807: "#1% Résistance distance",
+        2808: "#1% Dommages d'armes",
+        2809: "#1% Dommages d'armes",
+        2812: "#1% Dommages aux sorts",
+        2813: "#1% Dommages aux sorts"
+    }
+    effects_map.update(manual_overrides)
+
+    print(f"Loaded {len(effects_map)} effect definitions.")
+    return effects_map
+
+def format_description(pattern, min_val, max_val):
+    if not pattern:
+        return f"Effect {min_val}" + (f" à {max_val}" if min_val != max_val else "")
+
+    text = pattern
+
+    if min_val == max_val:
+        # Heuristic: If it's a range pattern (contains {{~1~2), remove the range part and #2
+        if "{{~1~2" in text:
+             text = re.sub(r'\{\{~1~2.*?\}\}', '', text)
+             text = text.replace('#2', '')
+        
+        text = text.replace('#1', str(min_val))
+        # Just in case #2 is still there (if not a range pattern)
+        text = text.replace('#2', str(max_val))
+    else:
+        # Range case
+        # Replace conditional {{~1~2 content }} with content
+        text = re.sub(r'\{\{~1~2(.*?)\}\}', r'\1', text)
+        text = text.replace('#1', str(min_val)).replace('#2', str(max_val))
+
+    # Handle pluralization {{~ps}} -> s if max_val > 1
+    # We treat max_val as the deciding factor for the whole string pluralization
+    def replace_plural(match):
+        return 's' if max_val > 1 else ''
+
+    text = re.sub(r'\{\{~ps\}\}', replace_plural, text)
+    
+    # Strip remaining tags (including {{~zs}} which we don't handle specifically yet)
+    text = re.sub(r'\{\{.*?\}\}', '', text) 
+    
+    # Fix double spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
 def ingest_effects():
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # 0. Load Effect Definitions
+    effects_map = fetch_effect_definitions()
 
     # 1. Get all existing Ankama IDs from our DB to filter
     print("Fetching existing items from DB...")
@@ -98,11 +188,14 @@ def ingest_effects():
                     if min_val > max_val:
                         min_val, max_val = max_val, min_val
 
-                    # Generate a simple description (Placeholder)
-                    # We could improve this with a mapping later
-                    description = f"Effect {effect_id}: {min_val}"
-                    if min_val != max_val:
-                        description += f" à {max_val}"
+                    # Format Description
+                    pattern = effects_map.get(effect_id)
+                    if pattern:
+                        description = format_description(pattern, min_val, max_val)
+                    else:
+                        description = f"Effect {effect_id}: {min_val}"
+                        if min_val != max_val:
+                            description += f" à {max_val}"
 
                     cursor.execute("""
                         INSERT INTO item_effects (item_id, effect_id, min_value, max_value, formatted_description, order_index)

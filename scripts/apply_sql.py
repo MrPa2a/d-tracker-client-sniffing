@@ -27,8 +27,13 @@ def apply_sql(file_path):
         cur = conn.cursor()
         
         print(f"Reading {file_path}...")
-        with open(file_path, 'r', encoding='utf-8') as f:
-            sql = f.read()
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                sql = f.read()
+        except UnicodeDecodeError:
+            # Fallback to utf-16 if utf-8 fails (PowerShell redirection often creates UTF-16 LE BOM)
+            with open(file_path, 'r', encoding='utf-16') as f:
+                sql = f.read()
             
         print("Executing SQL...")
         cur.execute(sql)
