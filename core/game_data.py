@@ -116,7 +116,7 @@ class GameData:
             
             # Hacky way to get base url if it includes endpoint
             base_url = api_url.replace("/ingest", "")
-            url = f"{base_url}/known_items"
+            url = f"{base_url}/data?resource=known_items"
             
             print(f"Récupération des items connus depuis {url}...")
             response = requests.get(url, timeout=10)
@@ -164,7 +164,7 @@ class GameData:
             api_url = config_manager.get("api_url")
             if api_url:
                 base_url = api_url.replace("/ingest", "")
-                url = f"{base_url}/known_items"
+                url = f"{base_url}/data?resource=known_items"
                 payload = {"gid": int(gid), "name": name, "category": category}
                 requests.post(url, json=payload, timeout=10)
                 

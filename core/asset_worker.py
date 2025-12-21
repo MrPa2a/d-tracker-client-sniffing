@@ -75,7 +75,7 @@ class AssetWorker(threading.Thread):
 
         # Construct upload URL (assuming api_url is .../ingest)
         base_url = api_url.replace("/ingest", "")
-        upload_url = f"{base_url}/items?type=icon"
+        upload_url = f"{base_url}/data?resource=items&type=icon"
         
         try:
             files = {
