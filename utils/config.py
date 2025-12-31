@@ -39,7 +39,9 @@ DEFAULT_CONFIG = {
     "outlier_threshold_percent": 500, # 500% deviation
     "overlay_mode": "Auto",
     "debug_mode": False,
-    "disable_upload": False
+    "disable_upload": False,
+    "profile_id": None,      # UUID du profil sélectionné
+    "profile_name": None     # Nom du profil pour affichage
 }
 
 class ConfigManager:

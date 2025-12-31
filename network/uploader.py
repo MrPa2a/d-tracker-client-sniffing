@@ -152,3 +152,79 @@ class BatchUploader(threading.Thread):
         self.running = False
         # Tenter un dernier upload ?
         self.upload_batch()
+
+    def upload_bank_content(self, bank_items):
+        """
+        Envoie le contenu de la banque au serveur.
+        
+        Args:
+            bank_items: Liste de {gid: int, quantity: int, uid: int}
+        """
+        if not bank_items:
+            print("[Uploader] Contenu banque vide, envoi annulé.")
+            return False
+        
+        # Vérifier si l'upload est désactivé
+        if config_manager.get("disable_upload", False):
+            print(f"[Uploader] Upload désactivé, banque non envoyée ({len(bank_items)} items)")
+            return False
+            
+        # Refresh config
+        try:
+            config_manager.load()
+        except Exception as e:
+            print(f"[Uploader] Erreur rechargement config: {e}")
+            
+        self.api_token = config_manager.get("api_token")
+        self.server = config_manager.get("server")
+        profile_id = config_manager.get("profile_id")
+        profile_name = config_manager.get("profile_name")
+        
+        if not profile_id:
+            print(f"[Uploader] ⚠️ Aucun profil sélectionné. La banque sera stockée sans profil.")
+        else:
+            print(f"[Uploader] Profil: {profile_name} ({profile_id[:8]}...)")
+        
+        if not self.api_token:
+            print("[Uploader] ⚠️ Token API manquant. Banque non envoyée.")
+            return False
+            
+        if not self.server:
+            print("[Uploader] ⚠️ Serveur non configuré. Banque non envoyée.")
+            return False
+        
+        # Préparer le payload (camelCase pour le backend)
+        captured_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        
+        payload = {
+            "server": self.server,
+            "profileId": profile_id,  # Peut être None si non configuré
+            "items": [
+                {"gid": item["gid"], "quantity": item["quantity"]}
+                for item in bank_items
+            ],
+            "capturedAt": captured_at
+        }
+        
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_token}"
+            }
+            
+            # Endpoint /api/user?resource=bank
+            bank_url = self.api_url.replace("/ingest", "/user?resource=bank")
+            
+            print(f"[Uploader] Envoi banque: {len(bank_items)} items vers {bank_url}")
+            response = requests.post(bank_url, json=payload, headers=headers, timeout=30)
+            
+            if response.status_code in [200, 201]:
+                print(f"[Uploader] ✅ Banque envoyée: {len(bank_items)} items.")
+                return True
+            else:
+                print(f"[Uploader] ❌ Erreur envoi banque ({response.status_code}): {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"[Uploader] Exception réseau (banque): {e}")
+            return False

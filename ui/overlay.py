@@ -55,9 +55,24 @@ class OverlayWindow(ctk.CTkToplevel):
 
     def update_info(self, item_name, price):
         self.label_item.configure(text=item_name)
-        self.label_price.configure(text=f"{price:,} k/u".replace(",", " "))
+        self.label_price.configure(text=f"{price:,} k/u".replace(",", " "), text_color="#4ade80")
         self.count += 1
         self.label_count.configure(text=f"Items: {self.count}")
+
+    def show_bank_notification(self, item_count):
+        """Affiche une notification temporaire quand la banque est capturée."""
+        self.label_item.configure(text=f"📦 Banque capturée")
+        self.label_price.configure(text=f"{item_count} items synchronisés", text_color="#60a5fa")
+        
+        # Revenir à l'état normal après 5 secondes
+        self.after(5000, self._reset_bank_notification)
+    
+    def _reset_bank_notification(self):
+        """Remet l'overlay à son état normal après la notification banque."""
+        # Ne reset que si on affiche toujours le message banque
+        if "Banque" in self.label_item.cget("text"):
+            self.label_item.configure(text="En attente...")
+            self.label_price.configure(text="-", text_color="#4ade80")
 
     def toggle_scraping(self):
         # Call the main window's toggle method

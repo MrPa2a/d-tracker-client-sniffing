@@ -366,3 +366,98 @@ def parse_jcg_packet(payload):
         pass
     
     return None, []
+
+
+# ============================================================================
+# BANK / STORAGE PARSING (hzm packet)
+# ============================================================================
+
+def parse_simple_proto(data):
+    """
+    Parse simple protobuf fields (varints and length-delimited).
+    Returns a dict with field_num -> value (for varints) or "{field_num}_bytes" -> bytes.
+    """
+    fields = {}
+    pos = 0
+    while pos < len(data):
+        try:
+            tag, pos = read_varint(data, pos)
+            field_num = tag >> 3
+            wire_type = tag & 0x07
+            
+            if wire_type == 0:  # Varint
+                value, pos = read_varint(data, pos)
+                fields[field_num] = value
+            elif wire_type == 2:  # Length-delimited
+                length, pos = read_varint(data, pos)
+                fields[f"{field_num}_bytes"] = data[pos:pos+length]
+                pos += length
+            elif wire_type == 1:  # Fixed 64-bit
+                pos += 8
+            elif wire_type == 5:  # Fixed 32-bit
+                pos += 4
+            else:
+                break
+        except:
+            break
+    return fields
+
+
+def parse_hzm_packet(payload):
+    """
+    Parse le paquet hzm (contenu de la banque).
+    
+    Structure découverte (janvier 2025):
+    - Field 1 (repeated): StorageItem containers
+      - Field 2: type = 63 (constant)
+      - Field 4_bytes: ItemData protobuf imbriqué
+        - Field 2: uid (int64) - ID unique de l'instance
+        - Field 3: quantity (int32)
+        - Field 5: gid (int32) - ID Ankama de l'item
+    
+    Args:
+        payload: bytes du message hzm (après le préfixe type.ankama.com/)
+        
+    Returns:
+        List[dict]: [{gid: int, quantity: int, uid: int}, ...]
+    """
+    items = []
+    pos = 0
+    
+    while pos < len(payload):
+        try:
+            tag, new_pos = read_varint(payload, pos)
+            field_num = tag >> 3
+            wire_type = tag & 0x07
+            
+            if field_num == 1 and wire_type == 2:  # Repeated StorageItem
+                length, new_pos = read_varint(payload, new_pos)
+                container_data = payload[new_pos:new_pos + length]
+                container = parse_simple_proto(container_data)
+                
+                # Extraire les données de l'item depuis field 4
+                if '4_bytes' in container:
+                    inner = parse_simple_proto(container['4_bytes'])
+                    items.append({
+                        'uid': inner.get(2, 0),
+                        'quantity': inner.get(3, 1),
+                        'gid': inner.get(5, 0)
+                    })
+                new_pos += length
+            elif wire_type == 0:
+                _, new_pos = read_varint(payload, new_pos)
+            elif wire_type == 2:
+                length, new_pos = read_varint(payload, new_pos)
+                new_pos += length
+            elif wire_type == 1:
+                new_pos += 8
+            elif wire_type == 5:
+                new_pos += 4
+            else:
+                new_pos = pos + 1
+                
+            pos = new_pos if new_pos > pos else pos + 1
+        except:
+            break
+    
+    return items

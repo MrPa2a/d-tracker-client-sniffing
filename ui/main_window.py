@@ -10,6 +10,7 @@ from ui.overlay import OverlayWindow
 from core.sniffer_service import SnifferService
 from core.game_data import game_data
 from network.uploader import BatchUploader
+from network.profiles_client import profiles_client
 from utils.config import config_manager, DOFUS_SERVERS
 from core.updater import UpdateManager
 from core.constants import APP_NAME, VERSION, UPDATE_URL
@@ -191,6 +192,26 @@ class MainWindow(ctk.CTk):
         self.server_combo.set(config_manager.get("server", "Draconiros"))
         self.server_combo.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
         
+        # Profile selector
+        self.profile_label = ctk.CTkLabel(self.config_frame, text="Profil:")
+        self.profile_label.grid(row=0, column=2, padx=(20, 10), pady=5, sticky="e")
+        
+        self.profile_names = ["(Aucun)"]
+        self.profile_combo = ctk.CTkComboBox(self.config_frame, values=self.profile_names, command=self.on_profile_change, state="readonly", width=150)
+        saved_profile = config_manager.get("profile_name")
+        if saved_profile:
+            self.profile_combo.set(saved_profile)
+        else:
+            self.profile_combo.set("(Aucun)")
+        self.profile_combo.grid(row=0, column=3, padx=10, pady=5, sticky="ew")
+        
+        # Refresh profiles button
+        self.refresh_profiles_btn = ctk.CTkButton(self.config_frame, text="↻", width=30, command=self.refresh_profiles)
+        self.refresh_profiles_btn.grid(row=0, column=4, padx=(0, 10), pady=5)
+        
+        # Load profiles in background
+        threading.Thread(target=self._load_profiles_async, daemon=True).start()
+        
         # Overlay Mode
         self.overlay_label = ctk.CTkLabel(self.config_frame, text="Overlay:")
         self.overlay_label.grid(row=1, column=0, padx=10, pady=5, sticky="e")
@@ -271,6 +292,54 @@ class MainWindow(ctk.CTk):
         self.uploader.server = choice
         print(f"Serveur changé pour : {choice}")
 
+    def on_profile_change(self, choice):
+        """Gère le changement de profil sélectionné."""
+        if choice == "(Aucun)":
+            config_manager.set("profile_id", None)
+            config_manager.set("profile_name", None)
+            print("Profil: Aucun (mode anonyme)")
+        else:
+            # Récupérer l'ID du profil
+            profile_id = profiles_client.get_profile_id_by_name(choice)
+            if profile_id:
+                config_manager.set("profile_id", profile_id)
+                config_manager.set("profile_name", choice)
+                print(f"Profil sélectionné: {choice} ({profile_id[:8]}...)")
+            else:
+                print(f"⚠️ Profil '{choice}' non trouvé, ID non enregistré.")
+                config_manager.set("profile_name", choice)
+    
+    def refresh_profiles(self):
+        """Rafraîchit la liste des profils depuis le backend."""
+        print("Rafraîchissement des profils...")
+        threading.Thread(target=self._load_profiles_async, daemon=True).start()
+    
+    def _load_profiles_async(self):
+        """Charge les profils de manière asynchrone."""
+        try:
+            names = profiles_client.get_profile_names()
+            if names:
+                self.profile_names = ["(Aucun)"] + names
+                # Mettre à jour le combo dans le thread principal
+                self.after(0, self._update_profile_combo)
+                print(f"Profils chargés: {len(names)} disponibles")
+            else:
+                print("Aucun profil trouvé ou erreur de connexion")
+        except Exception as e:
+            print(f"Erreur chargement profils: {e}")
+    
+    def _update_profile_combo(self):
+        """Met à jour le combo des profils (appelé depuis le thread principal)."""
+        current = self.profile_combo.get()
+        self.profile_combo.configure(values=self.profile_names)
+        # Restaurer la sélection si elle existe toujours
+        if current in self.profile_names:
+            self.profile_combo.set(current)
+        elif config_manager.get("profile_name") in self.profile_names:
+            self.profile_combo.set(config_manager.get("profile_name"))
+        else:
+            self.profile_combo.set("(Aucun)")
+
     def on_overlay_change(self, choice):
         config_manager.set("overlay_mode", choice)
         self._update_overlay_visibility()
@@ -318,12 +387,46 @@ class MainWindow(ctk.CTk):
             self.start_sniffer()
 
     def start_sniffer(self):
-        self.sniffer = SnifferService(callback=self.on_observation, on_error=self.on_sniffer_error, on_unknown_item=self.on_unknown_item)
+        self.sniffer = SnifferService(
+            callback=self.on_observation, 
+            on_error=self.on_sniffer_error, 
+            on_unknown_item=self.on_unknown_item,
+            on_bank_content=self.on_bank_content
+        )
         self.sniffer.start()
         self.start_btn.configure(text="Arrêter Scraping", fg_color="#da3633", hover_color="#b62324")
         print("Scraping démarré.")
         
         self._update_overlay_visibility()
+
+    def on_bank_content(self, bank_items):
+        """
+        Callback appelé quand le contenu de la banque est reçu (paquet hzm).
+        Envoie le contenu au serveur via l'uploader.
+        """
+        if not bank_items:
+            return
+        
+        item_count = len(bank_items)
+        print(f"[Banque] Contenu reçu: {item_count} items")
+        
+        # Afficher la notification sur l'overlay (thread-safe)
+        self.after(0, lambda: self._show_bank_overlay(item_count))
+        
+        # Upload async via le BatchUploader
+        if self.uploader:
+            # Run in a separate thread to avoid blocking sniffer
+            import threading
+            threading.Thread(
+                target=self.uploader.upload_bank_content, 
+                args=(bank_items,),
+                daemon=True
+            ).start()
+    
+    def _show_bank_overlay(self, item_count):
+        """Affiche la notification banque sur l'overlay (appelé depuis le thread principal)."""
+        if self.overlay:
+            self.overlay.show_bank_notification(item_count)
 
     def on_unknown_item(self, gid, prices):
         # This runs in sniffer thread. We need to ask main thread.

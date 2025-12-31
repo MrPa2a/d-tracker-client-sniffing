@@ -2,17 +2,18 @@ import threading
 import time
 import json
 from scapy.all import sniff, TCP, IP, Raw
-from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, parse_hyp_packet, parse_jeu_packet, read_varint
+from core.packet_parser import parse_iqb_packet, parse_jbo_packet, parse_jcg_packet, parse_hyp_packet, parse_jeu_packet, parse_hzm_packet, read_varint
 from core.game_data import game_data
 from core.anomaly_filter import AnomalyFilter
 from utils.config import config_manager
 
 class SnifferService(threading.Thread):
-    def __init__(self, callback=None, on_error=None, on_unknown_item=None):
+    def __init__(self, callback=None, on_error=None, on_unknown_item=None, on_bank_content=None):
         super().__init__()
         self.callback = callback
         self.on_error = on_error
         self.on_unknown_item = on_unknown_item
+        self.on_bank_content = on_bank_content  # Callback for bank content (hzm packet)
         self.running = False
         self.dump_packets = False # Enable packet dumping for debug
         self.filter = AnomalyFilter(
@@ -30,6 +31,10 @@ class SnifferService(threading.Thread):
         # Buffer for TCP reassembly (Simple)
         self.buffer = b""
         self.buffer_time = 0
+        
+        # Special buffer for jcr packets (bank content wrapper)
+        self.jcr_buffer = b""
+        self.jcr_buffer_time = 0
 
     def run(self):
         self.running = True
@@ -38,8 +43,9 @@ class SnifferService(threading.Thread):
             # Load game data if not loaded
             if not game_data.loaded:
                 game_data.load()
-                
-            sniff(prn=self.packet_callback, store=0, stop_filter=lambda x: not self.running)
+            
+            # Use BPF filter for Dofus port 5555 to improve capture reliability
+            sniff(filter="tcp port 5555", prn=self.packet_callback, store=0, stop_filter=lambda x: not self.running)
         except Exception as e:
             error_msg = f"Sniffer error: {e}"
             self.log(error_msg, "ERROR")
@@ -169,6 +175,7 @@ class SnifferService(threading.Thread):
             return
             
         src_port = packet[TCP].sport
+        dst_port = packet[TCP].dport
         
         # Only process server traffic (5555)
         if src_port == 5555 and packet.haslayer(Raw):
@@ -178,7 +185,52 @@ class SnifferService(threading.Thread):
                 with open("packet_dump.bin", "ab") as f:
                     f.write(payload)
             
-            # --- TCP Reassembly Logic ---
+            # --- Special handling for jcr packets (bank content wrapper) ---
+            # jcr packets are fragmented and contain embedded hzm messages
+            jcr_prefix = b'type.ankama.com/jcr'
+            hzm_prefix = b'type.ankama.com/hzm'
+            
+            if jcr_prefix in payload:
+                # Start of jcr packet
+                self.jcr_buffer = payload
+                self.jcr_buffer_time = time.time()
+                self.log(f"[JCR] Started buffering jcr packet: {len(payload)} bytes", "DEBUG")
+            elif self.jcr_buffer:
+                # Continue buffering jcr fragments
+                if time.time() - self.jcr_buffer_time > 10:
+                    self.log("[JCR] Buffer timeout, clearing.", "DEBUG")
+                    self.jcr_buffer = b""
+                else:
+                    self.jcr_buffer += payload
+                    self.log(f"[JCR] Appended fragment: +{len(payload)} bytes, total: {len(self.jcr_buffer)} bytes", "DEBUG")
+                    
+                    # Check if we have the complete hzm inside
+                    if hzm_prefix in self.jcr_buffer:
+                        hzm_idx = self.jcr_buffer.find(hzm_prefix)
+                        hzm_start = hzm_idx + len(hzm_prefix)
+                        
+                        if hzm_start < len(self.jcr_buffer) and self.jcr_buffer[hzm_start] == 0x12:
+                            hzm_pos = hzm_start + 1
+                            try:
+                                hzm_len, hzm_pos = read_varint(self.jcr_buffer, hzm_pos)
+                                self.log(f"[JCR] Found hzm: len={hzm_len}, have={len(self.jcr_buffer) - hzm_pos}", "DEBUG")
+                                
+                                if hzm_pos + hzm_len <= len(self.jcr_buffer):
+                                    # We have the complete hzm!
+                                    hzm_payload = self.jcr_buffer[hzm_pos:hzm_pos + hzm_len]
+                                    bank_items = parse_hzm_packet(hzm_payload)
+                                    if bank_items:
+                                        self.log(f"[BANK] Received storage content: {len(bank_items)} items", "INFO")
+                                        if self.on_bank_content:
+                                            self.on_bank_content(bank_items)
+                                    self.jcr_buffer = b""
+                            except:
+                                pass
+                    
+                    # Don't process fragments as regular messages
+                    return
+            
+            # --- Regular TCP Reassembly Logic ---
             prefix = b'type.ankama.com/'
             idx = payload.find(prefix)
             
@@ -215,7 +267,7 @@ class SnifferService(threading.Thread):
                     # Determine type suffix
                     # Heuristic: Scan for 0x12 (Tag for field 2) within reasonable distance
                     type_end = -1
-                    for i in range(10):
+                    for i in range(20):  # Extended to 20 bytes for longer suffixes
                         check_pos = idx + len(prefix) + i
                         if check_pos < len(full_data) and full_data[check_pos] == 0x12:
                             type_end = check_pos
@@ -223,15 +275,15 @@ class SnifferService(threading.Thread):
                     
                     if type_end != -1:
                         type_suffix = full_data[idx + len(prefix) : type_end]
-                        # self.log(f"Detected type suffix: {type_suffix}", "DEBUG")
+                        self.log(f"[PARSE] Suffix: {type_suffix}, buffer: {len(full_data)} bytes", "DEBUG")
                         
                         curr = type_end + 1 # Skip Tag 0x12
                         msg_len, curr = read_varint(full_data, curr)
-                        # self.log(f"Message length: {msg_len}", "DEBUG")
+                        self.log(f"[PARSE] Message length: {msg_len}, have: {len(full_data) - curr}", "DEBUG")
                         
                         # Check if we have the full message
                         if curr + msg_len > len(full_data):
-                            # self.log(f"Waiting for more data... ({len(full_data)}/{curr + msg_len})", "DEBUG")
+                            self.log(f"[PARSE] Waiting for more data... ({len(full_data)}/{curr + msg_len})", "DEBUG")
                             return # Wait for next packet
                         
                         # We have the full message!
@@ -301,6 +353,17 @@ class SnifferService(threading.Thread):
                             # HYP packets contain unreliable prices (often averages or history, not current HDV)
                             # We ignore them to avoid polluting the data with incorrect values.
                             # _, p = parse_hyp_packet(msg_payload)
+                            pass
+                        elif type_suffix == b'hzm':
+                            # Bank/Storage content packet - contains all items in player's bank
+                            bank_items = parse_hzm_packet(msg_payload)
+                            if bank_items:
+                                self.log(f"[BANK] Received storage content: {len(bank_items)} items", "INFO")
+                                if self.on_bank_content:
+                                    self.on_bank_content(bank_items)
+                        elif type_suffix == b'jcr':
+                            # JCR packets are handled separately above with special buffering
+                            # This case should not be reached for bank content
                             pass
                         else:
                             # Heuristic check for GID 15715 in raw payload to find missing packets
